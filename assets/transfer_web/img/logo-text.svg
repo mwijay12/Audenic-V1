@@ -1,0 +1,13 @@
+<svg width="128" height="22" viewBox="0 0 128 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#F3F6F8"/>
+      <stop offset="100%" stop-color="#4DEEC8"/>
+    </linearGradient>
+  </defs>
+  <text x="2" y="16.5" font-family="'Segoe UI', -apple-system, Roboto, sans-serif" font-size="16" font-weight="800" letter-spacing="2.5" fill="url(#textGrad)">AUDENIC</text>
+  <!-- Futuristic AI dot accent -->
+  <circle cx="120" cy="8" r="2.5" fill="#4DEEC8"/>
+  <circle cx="120" cy="8" r="4.5" stroke="#2596FF" stroke-width="0.75" stroke-opacity="0.6"/>
+</svg>

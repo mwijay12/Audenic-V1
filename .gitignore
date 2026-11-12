@@ -1,0 +1,54 @@
+# Build & packaging outputs
+*.apk
+*.zip
+*.arsc
+*.keystore
+dist/
+dist_test/
+temp_apktool_out/
+test_orig_out/
+work/
+build/
+bin/
+
+# Intermediate Smali / DEX root dumps
+/classes.dex
+/classes2.dex
+/classes3.dex
+/classes4.dex
+/classes5.dex
+/classes6.dex
+/classes7.dex
+
+# Unzipped APK raw directories
+/com/
+/google/
+/kotlin/
+/lib/
+/META-INF/
+/mozilla/
+/okhttp3/
+/org/
+/res/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Sensitive API Vault keys & credentials
+ai_vault_local.json
+seed_firebase_vault.py
+*keys*.txt
+*.pem
+*.key
+
+# Temporary inspection dumps and screenshots
+*.png
+*.xml
+*.log
+!assets/**
+!test_audenic.lottie

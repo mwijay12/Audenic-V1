@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="54" height="105" viewBox="0 0 54 105" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="phone">
+<g id="bg">
+<path d="M0 9C0 4.02944 4.02944 0 9 0H45C49.9706 0 54 4.02944 54 9V96C54 100.971 49.9706 105 45 105H9C4.02944 105 0 100.971 0 96V9Z" fill="#222324"/>
+<path d="M9 1H45C49.4183 1 53 4.58172 53 9V96C53 100.418 49.4183 104 45 104H9C4.58172 104 1 100.418 1 96V9C1 4.58172 4.58172 1 9 1Z" stroke="#F3F6F8" stroke-opacity="0.06" stroke-width="2"/>
+</g>
+<path id="speakr" d="M22 6L32 6" stroke="#F3F6F8" stroke-opacity="0.06" stroke-width="2" stroke-linecap="round"/>
+<path id="bar" d="M16 100H38" stroke="#F3F2F2" stroke-opacity="0.16" stroke-linecap="round"/>
+</g>
+</svg>

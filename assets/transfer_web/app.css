@@ -1,0 +1,2463 @@
+/*
+ * 传输页样式，照 Figma 稿实现（LP-UX_2026 交付，node 10230:61752 手机 / 10657:125801 桌面）。
+ *
+ * 两件事定了整份文件的形状：
+ *
+ * - **深色单主题**。稿子只有深色一版，不跟随系统——不加 prefers-color-scheme 分支，
+ *   免得出现一个没人设计过的浅色态；但 `color-scheme` 要声明，理由见 :root 那一行。
+ * - **一份响应式覆盖两端**。手机与桌面的结构完全相同，差别只有卡片上限宽度与外边距两档，
+ *   一个断点就够，不做两套页面。
+ *
+ * 方向相关的一律用逻辑属性（inline-start / inline-end），不用 left / right：页面的 dir
+ * 由手机端系统语言注入（%DIR%），阿拉伯语下整页是 RTL。
+ */
+
+:root {
+  /* 不声明的话 Chromium 判定本页不支持深色、启用强制深色，把插画类 SVG 反色（真机实测 phone.svg 变白） */
+  color-scheme: dark;
+
+  /*
+   * 发送端与端内同一套色值，逐条搬自 `framework/base_ui/src/main/res/values/colorboard.xml`
+   * 的 night_* 那一组（本页只有深色一版）。**Android 写 #AARRGGBB，CSS 写 #RRGGBBAA**，
+   * 搬的时候要把 alpha 从前面挪到后面——注释里保留端内原值，方便逐条核对。
+   */
+  --bg-main: #0a0a0a;              /* night_bg_main           #FF0A0A0A */
+  --bg-overlay: #191919;           /* night_bg_overlay        #FF191919 */
+  --content-main: #f3f6f8;         /* night_content_main      #F3F6F8   */
+  --content-soft: #f3f6f899;       /* night_content_soft      #99F3F6F8 */
+  --content-most-weak: #f3f6f80a;  /* night_content_most_weak #0AF3F6F8 */
+  --brand-main: #2596ff;           /* night_brand_main        #2596FF   */
+  --positive-content: #4deec8;     /* night_positive_content  #4DEEC8   */
+  --warn-content: #fc6a5d;         /* night_warn_content      #FC6A5D   */
+  --white-solid: #ffffff;          /* night_white_solid       #FFFFFF   */
+  --bg-ripple: #f3f2f229;          /* night_bg_ripple         #29F3F2F2 */
+  --brand-content: #54b7ff;        /* night_brand_content     #54B7FF   */
+  --scrim: #000000b2;              /* night_black_opacity_70  #B2000000 */
+  --bg-overlay-top: #222324;       /* night_bg_overlay_top    #222324   */
+  --content-weak: #f3f6f85c;       /* night_content_weak      #5CF3F6F8 */
+
+  /* spacing/* 那一组 */
+  --sp-xsmall: 4px;
+  --sp-small: 8px;
+  --sp-xnormal: 12px;
+  --sp-normal: 16px;
+  --sp-xmedium: 20px;
+  --sp-medium: 24px;
+  --sp-large: 32px;
+  --sp-very-large: 48px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/**
+ * 浏览器默认的 `[hidden] { display: none }` 优先级最低，任何一条设了 display 的类选择器都能
+ * 顶掉它——`.pane` 就是这么把已经 hidden 的批次区又显示回来、把空态往上挤的。
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  /*
+   * 关掉浏览器的下拉刷新。列表滚到顶还接着往下拉时，滚动会链到根滚动容器、被浏览器接管成
+   * 刷新手势——而这一页刷新即丢：选好的文件在内存里，`File` 拿不回来。只挡手势，地址栏的
+   * 刷新按钮与 F5 照旧
+   */
+  overscroll-behavior-y: contain;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  background: var(--bg-main);
+  color: var(--content-main);
+  /* 稿子指定 Roboto；Android 的 system-ui 本来就是 Roboto，桌面端退回系统字体 */
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  -webkit-text-size-adjust: 100%;
+  /* 稿子没有按压态。不关的话手机浏览器会自己给每个可点元素画一层高亮（vivo 上是水波纹） */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   顶部 logo
+   -------------------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  gap: var(--sp-small);
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-normal) var(--sp-normal) var(--sp-small);
+  width: 100%;
+}
+
+.logo-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.logo-text {
+  display: block;
+  width: 128px;
+  height: 22px;
+}
+
+/* --------------------------------------------------------------------------
+   传给哪台手机
+   -------------------------------------------------------------------------- */
+
+.device {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-normal);
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: var(--sp-medium) var(--sp-normal);
+  width: 100%;
+}
+
+.device-frame {
+  position: relative;
+  width: 54px;
+  height: 105px;
+  border: 2px solid var(--content-most-weak);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.device-phone {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-start: -2px;
+  width: 54px;
+  height: 105px;
+}
+
+/* 连接态图标压在机身中间偏上，坐标照稿 */
+.device-state {
+  position: absolute;
+  inset-block-start: 32px;
+  inset-inline-start: 7px;
+  width: 36px;
+  height: 36px;
+}
+
+/* 被占用那一版没有现成的 36px 整图：圆底按色值拼，里面放导出的 24px 图标 */
+.device-blocked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: .75px solid var(--content-most-weak);
+  border-radius: 150px;
+  background: var(--content-most-weak);
+}
+
+.device-name {
+  margin: 0;
+  color: var(--content-soft);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+  /* 设备名是用户自定的，可能很长 */
+  overflow-wrap: anywhere;
+}
+
+.device-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xsmall);
+  align-items: center;
+  width: 100%;
+}
+
+/* 设备名是 medium，这句正文是 regular——两处字重不同，不能共用 */
+.device-error-body {
+  margin: 0;
+  color: var(--content-soft);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: center;
+  white-space: pre-line;
+}
+
+/* --------------------------------------------------------------------------
+   主卡片
+   -------------------------------------------------------------------------- */
+
+.main {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-small);
+  width: 100%;
+  min-height: 0;
+}
+
+.card {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--content-most-weak);
+  border-radius: var(--sp-large);
+  background: var(--bg-overlay);
+}
+
+/* 桌面端只有这两处不同：卡片封顶 640，主区下边距大一档 */
+@media (min-width: 720px) {
+  .header {
+    padding-block: var(--sp-large) var(--sp-normal);
+  }
+
+  .main {
+    padding-block: var(--sp-small) var(--sp-large);
+  }
+
+  .card {
+    max-width: 640px;
+  }
+}
+
+/**
+ * 空态的入口。**整张卡片都是热区**（稿 10230:61752 框的是 344×388 那一整块），所以这里
+ * `flex: 1 0 0` 撑满外层卡片、自己再把内容居中——只让中间那个圆可点的话，用户照着一大片
+ * 空白点下去不会有任何反应。
+ */
+.picker {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  gap: var(--sp-small);
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-very-large) var(--sp-large);
+  width: 100%;
+  min-height: 0;
+  cursor: pointer;
+}
+
+/* 连不上（含首拍还没回来）时整块不可点，光标也不该再暗示能点 */
+.picker-off {
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   排版
+   -------------------------------------------------------------------------- */
+
+.title {
+  margin: 0;
+  color: var(--content-main);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 21px;
+  letter-spacing: .25px;
+  text-align: center;
+}
+
+.subtext {
+  margin: 0;
+  color: var(--content-soft);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   按钮
+   -------------------------------------------------------------------------- */
+
+/* 空态那个圆形 + 。24px 内边距 + 32px 图标 = 80px 直径，照稿 */
+.fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-normal);
+  padding: var(--sp-medium);
+  border: 0;
+  border-radius: 100px;
+  background: var(--brand-main);
+  cursor: pointer;
+}
+
+/**
+ * 不可点那一版照占用稿（10657:125615）：底色换成 content_most_weak，加号本身压到 16%。
+ * 稿子里那个 + 是 `#F3F2F2` 16%，与现有这张白色图按 .16 透出来的结果在近黑底上看不出差别，
+ * 所以不为它单存一份资源。
+ */
+.fab:disabled {
+  background: var(--content-most-weak);
+  cursor: default;
+}
+
+.fab:disabled img {
+  opacity: .16;
+}
+
+/* 整块置灰：标题降到 content_weak，副标题整条收掉（由 render 控制 hidden） */
+.picker-blocked .title {
+  color: var(--content-weak);
+}
+
+/* --------------------------------------------------------------------------
+   批次态：info 条 + 分隔线 + 可滚动列表 + 底部按钮
+   -------------------------------------------------------------------------- */
+
+.batch {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.info {
+  display: flex;
+  gap: var(--sp-small);
+  align-items: center;
+  padding: var(--sp-medium) var(--sp-normal) var(--sp-normal);
+}
+
+/* 图标与计数之间只有 4，计数与右侧状态之间是 8——两档间距，得多一层 */
+.info-main {
+  display: flex;
+  flex: 1 0 0;
+  gap: var(--sp-xsmall);
+  align-items: center;
+  min-width: 0;
+}
+
+.info-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.info-count,
+.info-status {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.info-count {
+  min-width: 0;
+  color: var(--content-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-status {
+  color: var(--content-soft);
+  text-align: end;
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  margin: 0 var(--sp-normal);
+  background: var(--content-most-weak);
+}
+
+/* --------------------------------------------------------------------------
+   列表
+   -------------------------------------------------------------------------- */
+
+.list-area {
+  position: relative;
+  display: flex;
+  flex: 1 0 0;
+  min-height: 0;
+}
+
+.list {
+  flex: 1 0 0;
+  margin: 0;
+  padding: var(--sp-xsmall) 0;
+  min-height: 0;
+  list-style: none;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+.row {
+  display: grid;
+  /* 封面、名字、标记、移除。名字吃掉剩余宽度——2000 行的列不能靠内容撑 */
+  grid-template-columns: 48px 1fr auto auto;
+  gap: var(--sp-normal);
+  align-items: center;
+  padding: var(--sp-small) var(--sp-normal);
+  min-height: 64px;
+}
+
+.row-add {
+  cursor: pointer;
+}
+
+/**
+ * 离场：淡出，同时把自己的高度收掉，下面的行跟着平移上来（`render.js` 的 [leaveRow]）。
+ *
+ * **不能只淡出**——那样下面的行仍然在动画结束那一刻硬跳一格，看着还是「说没就没」。
+ * 时长取端内 RecyclerView `DefaultItemAnimator`：移除淡出 120 ms、其余行上移 250 ms。
+ * 250 这个数与 `LEAVE_MS` 是同一件事，改一处要改两处。
+ *
+ * `min-height` 与上下 padding 都得收：前者是 `.row` 那条 64px，不清的话高度钉在原地；
+ * 后者是 border-box 高度的**下限**——只改 height 的话收到 16px（8 + 8）就停住，
+ * 剩下那截仍然是硬消失。padding 与 height 同一条曲线，行里的内容才不会先往上跳一下。
+ */
+.row-leaving {
+  min-height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: height .25s ease, padding .25s ease, opacity .12s linear;
+}
+
+.row-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sp-small);
+  overflow: hidden;
+}
+
+/* 音频：整块就是那张音符图 */
+.cover-full {
+  display: block;
+  width: 48px;
+  height: 48px;
+}
+
+/* 歌词与「再加文件」：底色块 + 居中的 24px 图标 */
+.cover-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.cover-lyrics {
+  background: var(--bg-ripple);
+}
+
+.cover-add {
+  background: var(--content-most-weak);
+}
+
+.row-name {
+  min-width: 0;
+  color: var(--content-main);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-name-add {
+  color: var(--content-soft);
+}
+
+/* 预检跳过的条目右边什么都不带——稿子里它们连 Trailing 那一格都没有，文件名也不降色 */
+.row[data-state="skipped"] .row-ring {
+  opacity: 0;
+}
+
+.row-remove {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-small) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.row-remove-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   底部按钮
+   -------------------------------------------------------------------------- */
+
+/* 异常态是并排两个（Done + Retry），其余状态只有一个、独占整行 */
+.bottom {
+  display: flex;
+  gap: var(--sp-small);
+  padding: var(--sp-small) var(--sp-normal) var(--sp-normal);
+}
+
+.btn-wide {
+  flex: 1 0 0;
+  min-width: 0;
+  padding: var(--sp-xnormal) var(--sp-xmedium);
+  border: 0;
+  border-radius: 1000px;
+  background: var(--brand-main);
+  color: var(--white-solid);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+/* 没有可传的条目时的 Send。与空态那个「+」同一套置灰口径（.fab:disabled） */
+.btn-wide:disabled {
+  background: var(--content-most-weak);
+  color: var(--content-weak);
+  cursor: default;
+}
+
+/**
+ * 预检中的 Send（稿 11092:175008）：底色照旧是品牌蓝，文字让位给一个 24px 的转圈。
+ *
+ * **不贴 ic_Loading 那张图**：它是静态的，而这里要转。3/4 圈用 border 画——三条边有色、
+ * 一条透明，正好是稿子那个缺口，尺寸与描边跟列表里的进度环对齐（24px / 2.4px）。
+ *
+ * `color: transparent` 藏文字而不是清空 textContent：按钮宽高由文字撑着，清掉会塌一下。
+ * 它同时置灰失效，所以要把 :disabled 那套底色盖回来
+ */
+.btn-wide-loading,
+.btn-wide-loading:disabled {
+  position: relative;
+  background: var(--brand-main);
+  color: transparent;
+}
+
+.btn-wide-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2.4px solid transparent;
+  border-top-color: var(--white-solid);
+  border-right-color: var(--white-solid);
+  border-bottom-color: var(--white-solid);
+  border-radius: 50%;
+  animation: btn-spin .8s linear infinite;
+}
+
+/* 独立的转圈，与按钮里那个同源、只是尺寸与颜色跟着上下文走（稿 11631:35384 / 11631:35879） */
+.spinner {
+  display: block;
+  box-sizing: border-box;
+  width: var(--spinner-size, 32px);
+  height: var(--spinner-size, 32px);
+  border: 3px solid transparent;
+  border-top-color: var(--content-soft);
+  border-right-color: var(--content-soft);
+  border-bottom-color: var(--content-soft);
+  border-radius: 50%;
+  animation: btn-spin .8s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 关掉动画时至少别让它停在一个残缺的圈上看着像坏了 */
+@media (prefers-reduced-motion: reduce) {
+  .btn-wide-loading::after,
+  .spinner {
+    animation-duration: 2.4s;
+  }
+
+  /* 收起那一下直接到位。行照旧在 `LEAVE_MS` 后摘掉，这期间它已经是 0 高、全透明的 */
+  .row-leaving {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   等 config 落地那一屏（稿 11631:35384）：整块卡片只有一个转圈。
+   撑满卡片是为了让转圈落在与空态那个「+」同一个视觉位置上，切过去不跳
+   -------------------------------------------------------------------------- */
+
+.filtering {
+  display: flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  --spinner-size: 56px;
+}
+
+/* 追加选文件时的转圈（稿 11631:35879），夹在 info 条与列表之间 */
+.list-spin {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-medium) 0;
+}
+
+/* 转圈期间整屏锁住：行上的移除按钮看得见但点不动。Send 由 render 置灰、
+   Add more files 那行由 render 收起，这里只管列表里这一处 */
+.batch[data-phase='filtering'] .row-remove {
+  pointer-events: none;
+  opacity: .4;
+}
+
+/* --------------------------------------------------------------------------
+   弹窗：加不进来的文件
+   -------------------------------------------------------------------------- */
+
+.scrim {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+  padding: var(--sp-normal);
+  background: var(--scrim);
+}
+
+.dialog {
+  width: 312px;
+  max-width: 100%;
+  border-radius: var(--sp-medium);
+  background: var(--bg-overlay);
+  overflow: hidden;
+}
+
+.dialog-title {
+  margin: 0;
+  padding: var(--sp-large) var(--sp-medium) var(--sp-small);
+  color: var(--content-main);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 21px;
+  letter-spacing: .25px;
+}
+
+/* 三条限制是一条带换行的文案，整条来自 strings.xml，不在 HTML 里拆 */
+.dialog-body {
+  margin: 0;
+  padding: var(--sp-small) var(--sp-medium);
+  color: var(--content-soft);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: pre-line;
+}
+
+.dialog-actions {
+  display: flex;
+  /* 两个按钮时的间距。稿 10279:84821 里 Cancel 与 Stop 之间是 32px */
+  gap: var(--sp-large);
+  justify-content: flex-end;
+  padding: var(--sp-medium);
+}
+
+.btn-text {
+  min-width: 64px;
+  padding: var(--sp-xsmall);
+  border: 0;
+  background: none;
+  color: var(--brand-content);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   传输中
+   -------------------------------------------------------------------------- */
+
+/* 传输中右上角那句计数是品牌色，攒批与预检时是弱色——两个阶段的强调程度不同 */
+.batch[data-phase="uploading"] .info-status {
+  color: var(--brand-content);
+}
+
+/* 部分完成时右侧是两个计数并排。点本身是 16px 见方、圆点居中，间距就靠它，不再加 gap */
+.info-counts {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.info-failed {
+  color: var(--warn-content);
+}
+
+.info-skipped {
+  color: var(--content-soft);
+}
+
+.info-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/**
+ * 条目尾部的进度环。稿子给的两个图标（ic_progress_normal / ic_Loading）是同一个组件的
+ * 两态——底环与弧完全一样，只有弧的颜色不同。所以这里画成内联 SVG 按进度转 dashoffset，
+ * 而不是贴两张静态图：静态图给不出单条的实时进度（产品 §4.3 要「单条 + 整批」两层）。
+ */
+.row-ring {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.ring-track,
+.ring-arc {
+  fill: none;
+  stroke-width: 2.4;
+}
+
+.ring-track {
+  stroke: var(--bg-ripple);
+}
+
+.ring-arc {
+  stroke: var(--content-weak);
+  stroke-linecap: round;
+  /* 从 12 点起画，不是 3 点 */
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/**
+ * 只有真在传的那一条才抹平：进度事件一阵一阵来，不抹会一跳一跳。
+ * **状态切换不吃过渡**——它们不是进度的变化：排队→传输、传输→处理完、
+ * 以及 429 / 507 退回排队，都该是瞬时的。
+ */
+.row[data-state="uploading"] .ring-arc {
+  transition: stroke-dashoffset .2s linear;
+}
+
+.row[data-state="uploading"] .ring-arc,
+.row[data-state="processing"] .ring-arc,
+.row[data-state="saved"] .ring-arc {
+  stroke: var(--brand-content);
+}
+
+/* 失败的那条不画环，换成一个叹号（稿子的 ic_progress_stopped）——环表达的是进度，它已经没有进度了 */
+.row[data-state="failed"] .ring-track,
+.row[data-state="failed"] .ring-arc {
+  opacity: 0;
+}
+
+.row[data-state="failed"] .ring-stop {
+  opacity: 1;
+}
+
+/* 结果页的失败条目标红（稿 10437:26427）。**收窄到 `done`、不改 `.ring-stop` 的默认色**：
+   传输中的异常态（10279:86266）与用户暂停（10389:20561）里的条目同样是 `failed`，
+   那两档照稿子就是灰的，改默认值会把它们一起染红 */
+.batch[data-phase="done"] .row[data-state="failed"] .ring-stop {
+  fill: var(--warn-content);
+}
+
+/* 整批停下来之后排队的那些右边什么都不显示：没有任何东西在转，留个空环是在骗人。
+   **藏的是环那两笔、不是整个 `.row-ring`**：压容器会把底下的叹号一并压掉，而中断的那条
+   正要画叹号（见下面那条）。这也是本文件里 `failed` / `saved` 一直用的写法——`.ring-check`
+   与 `.ring-stop` 默认就是 `opacity: 0`，把环藏掉这一档行尾自然什么都不剩 */
+.batch[data-phase="paused"] .row[data-state="queued"] .ring-track,
+.batch[data-phase="paused"] .row[data-state="queued"] .ring-arc {
+  opacity: 0;
+}
+
+/* 产品态「发送中断」：传到一半被打断的那条画灰色叹号（稿 10279:86266 / 10389:20561）。
+   来路与判据在 `queue.interrupt`，这里只管画——条目仍是 `queued`，环由上面那条照常藏掉，
+   这儿只补亮叹号。
+
+   **收窄到 `paused`**：`queue.halt` 一次能标多条，而重发是一条条来的（`startUpload` 只清
+   当前那条）。不收窄的话 Resume 之后剩下几条会在正常滚动的列表里挂着叹号——屏幕说「正在传」，
+   行尾说「停了」 */
+.batch[data-phase="paused"] .row[data-interrupted] .ring-stop {
+  opacity: 1;
+}
+
+/**
+ * 列表底部那条常驻提示。渐变压在列表上，让滚到底的条目淡出而不是硬切。
+ */
+.hint {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 55px var(--sp-medium) var(--sp-small);
+  background: linear-gradient(to bottom, transparent, var(--bg-overlay) 50%);
+  pointer-events: none;
+}
+
+.hint-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto var(--sp-small);
+}
+
+.hint-text {
+  margin: 0;
+  color: var(--content-main);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* 传输中那个 Stop 是次要按钮：底色压低，文字用品牌色 */
+.btn-wide-ghost {
+  background: var(--bg-overlay-top);
+  color: var(--brand-content);
+}
+
+/* 完成那一下的对钩，对应端内的 progress_finish_*.lottie */
+.ring-check {
+  fill: none;
+  stroke: var(--brand-content);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+.row[data-state="saved"] .ring-track,
+.row[data-state="saved"] .ring-arc {
+  opacity: 0;
+}
+
+.row[data-state="saved"] .ring-check {
+  opacity: 1;
+  /* 画出来而不是直接出现：端内那条是 lottie 动画 */
+  stroke-dasharray: 18;
+  animation: check-draw .14s ease-out both;
+}
+
+@keyframes check-draw {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   传完（node 10292:93076）
+   -------------------------------------------------------------------------- */
+
+/**
+ * 传完之后整块换掉列表，不是在列表上加一行结论：这一屏没有任何可操作的条目了，
+ * 留着列表只会让人以为还能删还能改。
+ */
+.done {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.done-body {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  gap: var(--sp-large);
+  padding: var(--sp-normal);
+  min-height: 0;
+}
+
+/* 对钩与结论吃掉剩余高度并居中，计数那块贴着按钮——照稿的两段式 */
+.done-hero {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  gap: var(--sp-normal);
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.done-icon {
+  display: block;
+  width: 80px;
+  height: 80px;
+}
+
+.summary {
+  padding-block: var(--sp-xsmall);
+}
+
+.sum-row {
+  display: flex;
+  gap: var(--sp-medium);
+  align-items: center;
+  padding: var(--sp-normal);
+}
+
+.sum-main {
+  display: flex;
+  flex: 1 0 0;
+  gap: var(--sp-xnormal);
+  align-items: center;
+  min-width: 0;
+}
+
+.sum-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.sum-label,
+.sum-count {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.sum-label {
+  min-width: 0;
+  color: var(--content-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sum-count {
+  color: var(--content-soft);
+  white-space: nowrap;
+}
+
+/* 稿子里是一块 8px 高、1px 线居中的分隔，这里拆成 1px 线 + 上下各 3.5px */
+.sum-divider {
+  height: 1px;
+  margin: 3.5px var(--sp-normal);
+  background: var(--bg-ripple);
+}
+
+/* --------------------------------------------------------------------------
+   传输中的异常态（node 10279:86266）
+   -------------------------------------------------------------------------- */
+
+/* 失败那条的叹号，与进度环共用一个 svg——2000 行的列表不适合每行再挂一个 img */
+.ring-stop {
+  fill: var(--content-soft);
+  opacity: 0;
+}
+
+/*
+ * 底部那块有三档，标题字号各不相同：传输中是「锁 + 11px 一行」，传输异常是 15px medium，
+ * 部分完成是 17px bold——照各自的稿，不强行统一。
+ */
+.hint-error,
+.hint-result {
+  padding-block-end: var(--sp-normal);
+}
+
+.hint-error .hint-text {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.hint-result .hint-text {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 21px;
+  letter-spacing: .25px;
+}
+
+/* 每类一行，行数随实际情况变，所以是一段带换行的文本而不是若干个元素 */
+.hint-sub {
+  margin: 2px 0 0;
+  color: var(--content-soft);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 15px;
+  text-align: center;
+  white-space: pre-line;
+}
+
+/* --------------------------------------------------------------------------
+   Audenic AI Audio & Lyrics Studio (High-Craft AI Deslop Architecture)
+   -------------------------------------------------------------------------- */
+
+:root {
+  --bg-main: #0b0e17;
+  --bg-surface: #131826;
+  --bg-elevated: #1a2238;
+  --bg-active: #222d4a;
+  --border-subtle: #202b44;
+  --border-focus: #4deec8;
+  --content-main: #f3f6f8;
+  --content-soft: #9aa8c0;
+  --content-muted: #5e6d87;
+  --accent-cyan: #4deec8;
+  --accent-blue: #2596ff;
+  --status-ready: #4deec8;
+  --status-err: #fc6a5d;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Header & Tabs */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 16px 8px;
+  width: 100%;
+}
+
+.header-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface);
+  padding: 4px;
+  border-radius: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.nav-tab {
+  background: transparent;
+  color: var(--content-soft);
+  border: none;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-tab:hover {
+  color: var(--content-main);
+}
+
+.nav-tab.active {
+  background: var(--bg-elevated);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(77, 238, 200, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Master Card (R_outer = 16px, padding = 16px) */
+.ai-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  width: 100%;
+  max-width: 620px;
+  box-sizing: border-box;
+}
+
+.ai-header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 12px;
+}
+
+.ai-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--content-main);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ai-subtitle {
+  font-size: 12px;
+  color: var(--content-soft);
+  margin: 4px 0 0;
+  text-wrap: pretty;
+}
+
+/* Status Pill */
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-pill.ready {
+  background: rgba(77, 238, 200, 0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(77, 238, 200, 0.25);
+}
+
+.status-pill.ready .status-dot {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+}
+
+.status-pill.inactive {
+  background: rgba(154, 168, 192, 0.1);
+  color: var(--content-soft);
+  border: 1px solid var(--border-subtle);
+}
+
+.status-pill.inactive .status-dot {
+  background: var(--content-muted);
+}
+
+.status-pill.error {
+  background: rgba(252, 106, 93, 0.12);
+  color: var(--status-err);
+  border: 1px solid rgba(252, 106, 93, 0.25);
+}
+
+.status-pill.error .status-dot {
+  background: var(--status-err);
+}
+
+/* Provider Panel (Luminance shift: #1a2238, R = 12px, padding = 12px) */
+.provider-panel {
+  background: var(--bg-elevated);
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.provider-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.flex-grow {
+  flex: 1;
+}
+
+.btn-align-bottom {
+  align-self: flex-end;
+}
+
+.keys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .keys-grid {
+    grid-template-columns: 1fr;
+  }
+  .provider-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.custom-panel {
+  background: rgba(11, 14, 23, 0.4);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-subtle);
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form Controls (R_inner = R_outer - padding = 12px - 8px = 4px) */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--content-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label-link {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-size: 10px;
+}
+
+.label-link:hover {
+  text-decoration: underline;
+}
+
+.ai-input,
+.ai-select,
+.ai-textarea {
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--content-main);
+  padding: 8px 12px;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ai-input:focus,
+.ai-select:focus,
+.ai-textarea:focus {
+  border-color: var(--border-focus);
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .form-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Studio Sub-Navigation Tabs */
+.studio-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.studio-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-subtab {
+  background: var(--bg-elevated);
+  border: 1px solid transparent;
+  color: var(--content-soft);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-subtab:hover {
+  color: var(--content-main);
+  background: var(--bg-active);
+}
+
+.studio-subtab.active {
+  background: rgba(77, 238, 200, 0.1);
+  color: var(--accent-cyan);
+  border-color: rgba(77, 238, 200, 0.3);
+}
+
+/* Studio Forms */
+.studio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Buttons (px = 2.2 * py) */
+.btn-primary {
+  background: var(--accent-cyan);
+  color: #0b0e17;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--content-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-elevated);
+  border-color: var(--content-soft);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-action {
+  background: var(--accent-cyan);
+  color: #0b0e17;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 26px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  margin-top: 4px;
+}
+
+.btn-action:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 16px rgba(77, 238, 200, 0.25);
+}
+
+.btn-action:active {
+  transform: scale(0.985);
+}
+
+.btn-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* Outputs & Results */
+.output-container {
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.output-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.output-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--content-main);
+}
+
+.output-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.microcopy {
+  font-size: 11px;
+  color: var(--content-soft);
+  margin: 0;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* Metrics & Tags Grid (Fluid 2-4 column) */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.metric-block {
+  background: var(--bg-main);
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 10px;
+  color: var(--content-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--content-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-value.highlight {
+  color: var(--accent-cyan);
+}
+
+.metric-summary {
+  font-size: 12px;
+  color: var(--content-soft);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.metric-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--content-soft);
+}
+
+/* Playlist List */
+.playlist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.playlist-track-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg-main);
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.track-num {
+  font-size: 11px;
+  color: var(--content-muted);
+  width: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.track-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.track-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--content-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  font-size: 11px;
+  color: var(--content-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-mood {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  background: rgba(77, 238, 200, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Equalizer Visualizer */
+.eq-visualizer-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  background: var(--bg-main);
+  padding: 12px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  min-height: 120px;
+}
+
+.eq-band-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.eq-db-label {
+  font-size: 10px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.eq-bar-track {
+  flex: 1;
+  width: 8px;
+  background: var(--bg-surface);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  min-height: 60px;
+}
+
+.eq-bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, var(--accent-blue), var(--accent-cyan));
+  border-radius: 4px;
+  transition: height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.eq-freq-label {
+  font-size: 10px;
+  color: var(--content-muted);
+  font-weight: 600;
+}
+
+/* Radio DJ Speech Quote */
+.dj-speech-quote {
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--content-main);
+  background: var(--bg-main);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Premium Music Motion Choreography (Depth-of-Field Lyrics & Waveforms)
+   -------------------------------------------------------------------------- */
+
+/* Depth-of-Field Synced Lyrics Stage */
+.karaoke-box {
+  background: radial-gradient(circle at 50% 30%, rgba(37, 150, 255, 0.08), transparent 70%), var(--bg-main);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  padding: 24px 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  text-align: center;
+  scroll-behavior: smooth;
+  perspective: 800px;
+}
+
+.karaoke-line {
+  margin: 12px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  opacity: 0.25;
+  filter: blur(1.8px);
+  transform: scale(0.92);
+  transform-origin: center center;
+  cursor: pointer;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity, filter;
+  text-wrap: balance;
+}
+
+.karaoke-line.near {
+  opacity: 0.52;
+  filter: blur(0.7px);
+  transform: scale(0.97);
+}
+
+.karaoke-line.active {
+  opacity: 1.0;
+  filter: blur(0px);
+  transform: scale(1.06);
+  color: #ffffff;
+  text-shadow: 0 0 16px rgba(77, 238, 200, 0.75), 0 0 32px rgba(77, 238, 200, 0.3);
+}
+
+/* Interactive Waveform Scrubber */
+.waveform-stage {
+  background: var(--bg-main);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waveform-bars {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.wave-bar {
+  flex: 1;
+  max-width: 5px;
+  min-width: 2.5px;
+  border-radius: 3px;
+  background: rgba(243, 246, 248, 0.16);
+  transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wave-bar.played {
+  background: linear-gradient(to top, var(--accent-blue), var(--accent-cyan));
+  box-shadow: 0 0 8px rgba(77, 238, 200, 0.4);
+}
+
+.waveform-timecodes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--content-soft);
+}
+
+.timecode-elapsed {
+  color: var(--accent-cyan);
+}
+
+
+/* ==========================================================================
+   AUDENIC HIGH-CRAFT & 5-TAB FLOATING DOCK ARCHITECTURE
+   ========================================================================== */
+
+.audenic-body {
+  padding-bottom: 96px;
+  background-color: #0b0e17;
+  color: #f3f6f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.main-container {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 12px 16px;
+}
+
+/* Tab View Switcher */
+.tab-view {
+  display: none;
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.tab-view.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header Enhancements */
+.logo-soundwave-badge {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+  margin-inline-end: 10px;
+}
+
+.logo-soundwave-badge .bar {
+  width: 3.5px;
+  background: #4deec8;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(77, 238, 200, 0.5);
+  animation: barBounce 1.2s ease-in-out infinite alternate;
+}
+
+.logo-soundwave-badge .bar-1 { height: 12px; animation-delay: 0.1s; }
+.logo-soundwave-badge .bar-2 { height: 22px; animation-delay: 0.3s; }
+.logo-soundwave-badge .bar-3 { height: 16px; animation-delay: 0.5s; }
+
+@keyframes barBounce {
+  0% { transform: scaleY(0.4); }
+  100% { transform: scaleY(1.0); }
+}
+
+.logo-text-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #f3f6f8;
+}
+
+.brand-sparkle {
+  color: #4deec8;
+  text-shadow: 0 0 10px rgba(77, 238, 200, 0.8);
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(243, 246, 248, 0.6);
+  letter-spacing: 0.5px;
+}
+
+/* --------------------------------------------------------------------------
+   FLOATING NAVIGATION DOCK
+   -------------------------------------------------------------------------- */
+.floating-dock {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(15, 20, 32, 0.92);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(77, 238, 200, 0.25);
+  border-radius: 9999px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7),
+              0 0 24px rgba(77, 238, 200, 0.14);
+}
+
+.dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 58px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: rgba(243, 246, 248, 0.55);
+  cursor: pointer;
+  border-radius: 9999px;
+  transition: all 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dock-btn:hover {
+  color: #f3f6f8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dock-btn.active {
+  color: #4deec8;
+  background: rgba(77, 238, 200, 0.14);
+  box-shadow: 0 0 14px rgba(77, 238, 200, 0.22);
+  transform: translateY(-2px);
+}
+
+.dock-icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dock-btn.active .dock-icon {
+  transform: scale(1.15);
+  stroke: #4deec8;
+}
+
+.dock-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* --------------------------------------------------------------------------
+   HOME VIEW: HERO STAGE & AUDIO VIBES
+   -------------------------------------------------------------------------- */
+.hero-stage {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(20, 27, 45, 0.9), rgba(11, 14, 23, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  margin-bottom: 24px;
+}
+
+.hero-backdrop {
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(77, 238, 200, 0.18) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.hero-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero-art-container {
+  position: relative;
+}
+
+.hero-art {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  background: #151c2e;
+  border: 1px solid rgba(77, 238, 200, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.hero-live-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #0b0e17;
+  border: 1px solid #4deec8;
+  color: #4deec8;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pulse-dot {
+  width: 5px;
+  height: 5px;
+  background: #4deec8;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #4deec8;
+  animation: pulseGlow 1.5s infinite;
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1.0; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.hero-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #4deec8;
+}
+
+.hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 3px 0 2px 0;
+  color: #ffffff;
+}
+
+.hero-artist {
+  font-size: 12px;
+  color: rgba(243, 246, 248, 0.65);
+}
+
+.btn-play-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #4deec8, #2596ff);
+  color: #0b0e17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(77, 238, 200, 0.4);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-play-circle:hover {
+  transform: scale(1.08);
+}
+
+.waveform-stage {
+  padding-top: 10px;
+}
+
+.waveform-bars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+}
+
+/* Mood Chips */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 10px 0;
+}
+
+.section-heading {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+.section-link {
+  font-size: 12px;
+  color: #4deec8;
+  cursor: pointer;
+}
+
+.mood-chips-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+.mood-chips-scroll::-webkit-scrollbar { display: none; }
+
+.mood-chip {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #141b2d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  color: rgba(243, 246, 248, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mood-chip.active {
+  background: rgba(77, 238, 200, 0.15);
+  border-color: #4deec8;
+  color: #4deec8;
+}
+
+/* Track rows */
+.recent-tracks-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: #131826;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.track-row:hover {
+  background: #1a2238;
+  border-color: rgba(77, 238, 200, 0.3);
+}
+
+.track-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(243, 246, 248, 0.4);
+}
+
+.track-info {
+  flex-grow: 1;
+}
+
+.track-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f6f8;
+}
+
+.track-sub {
+  font-size: 11px;
+  color: rgba(243, 246, 248, 0.55);
+}
+
+.track-time {
+  font-size: 12px;
+  color: rgba(243, 246, 248, 0.6);
+}
+
+/* --------------------------------------------------------------------------
+   EXPLORE VIEW: RADIO & ARCHIVE
+   -------------------------------------------------------------------------- */
+.radio-card, .archive-card {
+  background: #131826;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.card-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #4deec8;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 2px 0 0 0;
+}
+
+.card-desc {
+  font-size: 12px;
+  color: rgba(243, 246, 248, 0.65);
+  margin: 0 0 14px 0;
+}
+
+.subheading {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 12px 0 8px 0;
+  color: #f3f6f8;
+}
+
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.radio-station-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #182033;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-station-item:hover {
+  background: #202b45;
+  border-color: rgba(77, 238, 200, 0.4);
+}
+
+.radio-station-item.playing {
+  border-color: #4deec8;
+  background: rgba(77, 238, 200, 0.1);
+  box-shadow: 0 0 16px rgba(77, 238, 200, 0.2);
+}
+
+.station-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #222d48;
+  color: #4deec8;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.station-meta {
+  flex-grow: 1;
+}
+
+.station-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.station-genre {
+  font-size: 11px;
+  color: rgba(243, 246, 248, 0.55);
+}
+
+.btn-play-station {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(77, 238, 200, 0.18);
+  color: #4deec8;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.archive-search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.archive-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.archive-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #182033;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.archive-icon {
+  font-size: 20px;
+}
+
+.archive-meta {
+  flex-grow: 1;
+}
+
+.archive-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.archive-details {
+  font-size: 11px;
+  color: rgba(243, 246, 248, 0.55);
+}
+
+/* --------------------------------------------------------------------------
+   REELS VIEW: VERTICAL SNAP PLAYER
+   -------------------------------------------------------------------------- */
+.reels-viewport {
+  width: 100%;
+  max-width: 440px;
+  height: calc(100vh - 170px);
+  margin: 0 auto;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #000000;
+  scrollbar-width: none;
+}
+.reels-viewport::-webkit-scrollbar { display: none; }
+
+.reel-slide {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  background: #07090e;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reel-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reel-touch-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.reel-heart-pop {
+  font-size: 64px;
+  animation: heartPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes heartPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.reel-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 5;
+}
+
+.btn-reel-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(15, 20, 32, 0.65);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  cursor: pointer;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.btn-reel-action:active {
+  transform: scale(0.88);
+}
+
+.action-count {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.reel-overlay-bottom {
+  position: absolute;
+  left: 14px;
+  right: 70px;
+  bottom: 24px;
+  z-index: 5;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.reel-creator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.creator-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #4deec8;
+  color: #0b0e17;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.creator-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reel-caption {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0 0 8px 0;
+}
+
+.reel-sound-ticker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #4deec8;
+}
+
+.ticker-text {
+  max-width: 220px;
+}
+
+.reel-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  z-index: 10;
+}
+
+.reel-progress-bar {
+  height: 100%;
+  background: #4deec8;
+}
+
+/* --------------------------------------------------------------------------
+   SETTINGS VIEW: FIREBASE CLOUD VAULT
+   -------------------------------------------------------------------------- */
+.vault-card {
+  background: #131826;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.vault-inputs-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.key-pool-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  background: #192138;
+  border: 1px solid rgba(77, 238, 200, 0.2);
+  border-radius: 10px;
+}
+
+.stat-num {
+  font-size: 16px;
+  font-weight: 800;
+  color: #4deec8;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: rgba(243, 246, 248, 0.65);
+}

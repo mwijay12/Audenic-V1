@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="audenicGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2596FF"/>
+      <stop offset="50%" stop-color="#4DEEC8"/>
+      <stop offset="100%" stop-color="#54B7FF"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141926"/>
+      <stop offset="100%" stop-color="#0A0C10"/>
+    </linearGradient>
+  </defs>
+  <!-- Background disc -->
+  <rect width="32" height="32" rx="8" fill="url(#bgGrad)"/>
+  <rect width="32" height="32" rx="8" stroke="url(#audenicGlow)" stroke-width="1.2" stroke-opacity="0.4"/>
+  <!-- Stylized Audenic "A" with Sonic Wave -->
+  <path d="M16 5.5L7.5 24H11.2L13.5 19H18.5L20.8 24H24.5L16 5.5ZM14.8 16L16 13.2L17.2 16H14.8Z" fill="url(#audenicGlow)"/>
+  <!-- Soundwave Pulse Bars inside crossbar -->
+  <circle cx="16" cy="18" r="1.5" fill="#4DEEC8"/>
+  <circle cx="6" cy="16" r="1.2" fill="#2596FF" opacity="0.8"/>
+  <circle cx="26" cy="16" r="1.2" fill="#4DEEC8" opacity="0.8"/>
+</svg>

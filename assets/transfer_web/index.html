@@ -2,887 +2,3524 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080c">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Audenic AI Studio — synchronized LRC lyrics, playlist curation and 5-band DSP suggestions for the Audenic player.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307080c'/%3E%3Cpath d='M20 40l10-18 10 18' fill='none' stroke='%235fe3e6' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='46' cy='20' r='4' fill='%238b93ff'/%3E%3C/svg%3E">
 <title>Audenic AI Studio</title>
 <style>
-  :root {
-    --bg-main: #0e1015;
-    --bg-card: #171920;
-    --bg-card-hover: #1c1f28;
-    --bg-input: #1f222b;
-    --border-subtle: rgba(255, 255, 255, 0.06);
-    --border-active: rgba(255, 255, 255, 0.16);
-    --text-primary: #ffffff;
-    --text-secondary: #8e929e;
-    --text-muted: #5e6370;
-    --accent-primary: #22c55e;
-    --accent-cyan: #00d2eb;
-    --radius-card: 16px;
-    --radius-sm: 10px;
-    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
+/* ==========================================================================
+   Audenic AI Studio — single-file UI
+   Design notes:
+   - One dark OLED surface system; every layer earns its contrast (no nested cards).
+   - Logical properties only (inline-start/end) so Arabic locales mirror cleanly.
+   - Motion is 160–420ms, one easing curve, and fully suppressed for
+     prefers-reduced-motion.
+   ========================================================================== */
 
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    -webkit-tap-highlight-color: transparent;
-  }
+:root{
+  color-scheme: dark;
 
-  body {
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    font-family: var(--font-stack);
-    min-height: 100vh;
-    padding-bottom: 60px;
-    -webkit-font-smoothing: antialiased;
-  }
+  --bg: #07080c;
+  --surface: #0d0f16;
+  --surface-2: #12151f;
+  --surface-3: #181c28;
 
-  /* Safe Area / Status Bar Header */
-  .header-bar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: rgba(14, 16, 21, 0.94);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border-subtle);
-    padding: 56px 20px 16px; /* Obey Pixel 8 Pro status bar notch */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+  --line: rgba(255,255,255,.07);
+  --line-strong: rgba(255,255,255,.14);
 
-  .header-nav {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
+  --text: #f2f5fa;
+  --text-2: #a4acbd;
+  --text-3: #7f8798;
 
-  .btn-icon-back {
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-  .btn-icon-back:active {
-    background: #2a2e3a;
-  }
+  --brand: #5fe3e6;
+  --brand-2: #8b93ff;
+  --mint: #4deec8;
+  --amber: #f0b45e;
+  --danger: #ff7285;
 
-  .header-titles h1 {
-    font-size: 1.15rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
+  --brand-soft: rgba(95,227,230,.10);
+  --brand-line: rgba(95,227,230,.28);
 
-  .header-titles p {
-    font-size: 0.76rem;
-    color: var(--text-secondary);
-    margin-top: 1px;
-  }
+  --r-lg: 22px;
+  --r-md: 16px;
+  --r-sm: 12px;
 
-  .pill-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.25);
-    color: var(--accent-primary);
-    padding: 5px 11px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 30px 70px -40px rgba(0,0,0,.95);
 
-  .dot-online {
-    width: 6px;
-    height: 6px;
-    background: var(--accent-primary);
-    border-radius: 50%;
-  }
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* Refined Segmented Tabs */
-  .segmented-nav {
-    display: flex;
-    gap: 8px;
-    padding: 16px 20px 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .segmented-nav::-webkit-scrollbar { display: none; }
+  --pad: clamp(16px, 5vw, 26px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
 
-  .nav-btn {
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
-    padding: 8px 18px;
-    border-radius: 22px;
-    font-size: 0.84rem;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+*, *::before, *::after{ box-sizing: border-box; }
+p{ margin: 0; }
 
-  .nav-btn.active {
-    background: #ffffff;
-    color: #0e1015;
-    border-color: #ffffff;
-    font-weight: 600;
-  }
+html{ -webkit-text-size-adjust: 100%; }
 
-  /* Content Containers */
-  .tab-pane {
-    padding: 16px 20px;
-    display: none;
-  }
-  .tab-pane.active {
-    display: block;
-    animation: fadeIn 0.25s ease forwards;
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+body{
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  padding-bottom: calc(var(--safe-bottom) + 34px);
+}
 
-  /* Cards */
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-card);
-    padding: 22px;
-    margin-bottom: 16px;
-  }
+/* Ambient light: two soft brand sources, no visible edges. */
+.aurora{
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(115% 70% at 6% -8%, rgba(95,227,230,.13), transparent 62%),
+    radial-gradient(95% 62% at 102% 2%, rgba(139,147,255,.11), transparent 64%),
+    radial-gradient(80% 55% at 50% 108%, rgba(77,238,200,.06), transparent 68%);
+}
 
-  .card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
+.shell{
+  width: 100%;
+  max-width: 780px;
+  margin-inline: auto;
+  padding-inline: var(--pad);
+}
 
-  .card-heading {
-    font-size: 0.98rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
+[hidden]{ display: none !important; }
 
-  .tag-badge {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    padding: 3px 8px;
-    border-radius: 6px;
-  }
+/* --------------------------------------------------------------------------
+   Focus + a11y
+   -------------------------------------------------------------------------- */
+:focus{ outline: none; }
+:focus-visible{
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.mono,
+code{
+  font-family: var(--mono);
+  font-size: .92em;
+  color: var(--text-2);
+}
+.notice p{ margin: 0; }
+#diag-output .lrc-ts{ min-width: 84px; }
 
-  .card-intro {
-    font-size: 0.82rem;
-    color: var(--text-secondary);
-    line-height: 1.45;
-    margin-bottom: 18px;
-  }
+.sr-only{
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
-  /* Inputs & Forms */
-  .field-label {
-    display: block;
-    font-size: 0.74rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
+/* --------------------------------------------------------------------------
+   Top bar
+   -------------------------------------------------------------------------- */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(180deg, rgba(7,8,12,.94), rgba(7,8,12,.74));
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--line);
+}
 
-  .text-input, .text-area {
-    width: 100%;
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    padding: 13px 15px;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s ease;
-  }
-  .text-input:focus, .text-area:focus {
-    border-color: var(--border-active);
-  }
-  .text-area {
-    min-height: 84px;
-    resize: vertical;
-    line-height: 1.45;
-  }
+.topbar-inner{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-bottom: 12px;
+}
 
-  /* Chips */
-  .chip-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 14px 0 20px;
-  }
+/* Device WebView draws under the status bar; keep extra clearance there. */
+body.is-device .topbar-inner{ padding-top: calc(max(var(--safe-top), 40px) + 10px); }
 
-  .pill-chip {
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    color: #c4c7d0;
-    font-size: 0.78rem;
-    padding: 7px 13px;
-    border-radius: 18px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .pill-chip:active {
-    background: #2b303d;
-    color: #ffffff;
-  }
+.icon-btn{
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .16s ease, border-color .16s ease, transform .16s var(--ease);
+}
+.icon-btn:hover{ background: var(--surface-3); border-color: var(--line-strong); }
+.icon-btn:active{ transform: scale(.96); }
 
-  /* Action Buttons */
-  .btn-submit {
-    width: 100%;
-    background: #ffffff;
-    color: #0e1015;
-    border: none;
-    padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 0.92rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-  }
-  .btn-submit:active {
-    opacity: 0.85;
-  }
+.brand{ min-width: 0; flex: 1; }
 
-  .btn-action-small {
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.76rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .btn-action-small:active {
-    background: #2b303d;
-  }
+.brand-title{
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: .01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.brand-title .spark{
+  color: var(--brand);
+  font-size: .82em;
+  transform: translateY(-1px);
+  text-shadow: 0 0 12px rgba(95,227,230,.75);
+}
+.brand-sub{
+  margin: 1px 0 0;
+  font-size: .72rem;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  /* Results Display */
-  .result-panel {
-    margin-top: 20px;
-    background: #12141a;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 16px;
-    display: none;
-  }
+.status-chip{
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 46%;
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+.status-chip:hover{ border-color: var(--line-strong); color: var(--text); }
+.status-chip .status-text{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dot{
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: background .2s ease, box-shadow .2s ease;
+}
+.status-chip[data-state="ready"] .dot{ background: var(--brand); box-shadow: 0 0 10px rgba(95,227,230,.85); }
+.status-chip[data-state="device"] .dot{ background: var(--mint); box-shadow: 0 0 10px rgba(77,238,200,.7); }
+.status-chip[data-state="none"] .dot{ background: var(--amber); box-shadow: 0 0 10px rgba(240,180,94,.6); }
+.status-chip[data-state="checking"] .dot{ background: var(--text-3); animation: pulse 1.4s ease-in-out infinite; }
 
-  .result-panel-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
+/* --------------------------------------------------------------------------
+   Tabs
+   -------------------------------------------------------------------------- */
+.tabs{
+  display: flex;
+  gap: 6px;
+  padding-block: 14px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar{ display: none; }
 
-  .result-panel-title {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+.tab{
+  flex: 1 1 0;
+  min-width: 0;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: .81rem;
+  font-weight: 600;
+  letter-spacing: .005em;
+  padding: 9px 13px;
+  min-height: 40px;
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .18s ease, background .18s ease, border-color .18s ease;
+}
+.tab:hover{ color: var(--text-2); }
+.tab[aria-selected="true"]{
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
 
-  .result-panel-content {
-    font-size: 0.86rem;
-    line-height: 1.6;
-    color: #e5e7eb;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 380px;
-    overflow-y: auto;
-  }
+/* --------------------------------------------------------------------------
+   Panels
+   -------------------------------------------------------------------------- */
+.panel{ padding-block: 14px 8px; }
+.panel[hidden]{ display: none; }
+.panel:focus-visible{ outline-offset: 8px; }
 
-  /* EQ Graphic */
-  .eq-container {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    height: 130px;
-    background: #12141a;
-    border-radius: var(--radius-sm);
-    padding: 18px 12px;
-    margin: 16px 0 20px;
-    border: 1px solid var(--border-subtle);
-  }
+.surface{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 38%),
+    var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--pad);
+  box-shadow: var(--shadow);
+}
 
-  .eq-slider-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
+.eyebrow{
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.eyebrow::before{
+  content: "";
+  width: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand));
+  opacity: .8;
+}
 
-  .eq-rail {
-    width: 6px;
-    height: 72px;
-    background: #222631;
-    border-radius: 3px;
-    display: flex;
-    align-items: flex-end;
-  }
+h2{
+  margin: 0;
+  font-size: clamp(1.24rem, 4.8vw, 1.5rem);
+  font-weight: 650;
+  line-height: 1.18;
+  letter-spacing: -.022em;
+  text-wrap: balance;
+}
 
-  .eq-thumb {
-    width: 100%;
-    background: #ffffff;
-    border-radius: 3px;
-    transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+.lede{
+  margin: 9px 0 0;
+  max-width: 46ch;
+  font-size: .875rem;
+  line-height: 1.62;
+  color: var(--text-2);
+}
+.lede strong{ color: var(--text); font-weight: 600; }
 
-  .eq-freq-label {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-  }
+.field{ margin-top: 22px; }
+.field-label{
+  display: block;
+  margin-bottom: 8px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
 
-  .eq-db-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
+.input, .textarea{
+  width: 100%;
+  appearance: none;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  padding: 14px 15px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.input::placeholder, .textarea::placeholder{ color: var(--text-3); }
+.input:hover, .textarea:hover{ border-color: var(--line-strong); }
+.input:focus, .textarea:focus{
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 4px var(--brand-soft);
+  background: #10131c;
+}
+.textarea{ min-height: 96px; resize: vertical; }
+@media (max-width: 480px){ .textarea{ resize: none; } }
+.input-with-action{ position: relative; }
+.input-with-action .input{ padding-inline-end: 48px; }
+.input-clear{
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.input-clear:hover{ color: var(--text); background: rgba(255,255,255,.05); }
 
-  /* Vault list items */
-  .vault-card-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 13px 15px;
-    background: var(--bg-input);
-    border-radius: var(--radius-sm);
-    margin-bottom: 8px;
-    border: 1px solid var(--border-subtle);
-  }
+.chips{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.chip{
+  appearance: none;
+  background: rgba(255,255,255,.028);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  padding: 8px 13px;
+  min-height: 36px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.chip:hover{ color: var(--text); border-color: var(--line-strong); background: rgba(255,255,255,.05); }
+.chip[aria-pressed="true"]{
+  color: var(--brand);
+  border-color: var(--brand-line);
+  background: var(--brand-soft);
+}
 
-  .vault-card-title {
-    font-size: 0.86rem;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
+.actions-row{ margin-top: 20px; }
 
-  .vault-card-sub {
-    font-size: 0.74rem;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
+.btn-primary{
+  width: 100%;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #8bf2ef 0%, #5fd6f2 42%, #8f9bff 100%);
+  color: #041219;
+  font-family: inherit;
+  font-size: .93rem;
+  font-weight: 700;
+  letter-spacing: .005em;
+  cursor: pointer;
+  box-shadow: 0 14px 34px -18px rgba(95,227,230,.9), inset 0 1px 0 rgba(255,255,255,.4);
+  transition: transform .18s var(--ease), filter .18s ease, box-shadow .18s ease, opacity .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary:hover{ filter: brightness(1.04); transform: translateY(-1px); }
+.btn-primary:active{ transform: translateY(0) scale(.995); filter: brightness(.98); }
+.btn-primary[disabled]{ opacity: .68; cursor: progress; transform: none; box-shadow: none; }
 
-  .vault-badge-ok {
-    font-size: 0.74rem;
-    font-weight: 500;
-    color: var(--accent-primary);
-  }
+.btn-ghost{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .16s ease, border-color .16s ease, transform .16s var(--ease);
+}
+.btn-ghost:hover{ background: var(--surface-3); border-color: var(--line-strong); }
+.btn-ghost:active{ transform: scale(.98); }
+.btn-ghost[disabled]{ opacity: .5; cursor: default; }
 
-  .spinner-indicator {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(0,0,0,0.2);
-    border-top-color: #000;
-    border-radius: 50%;
-    animation: rotate 0.8s linear infinite;
+.btn-link{
+  appearance: none;
+  margin-top: 12px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,.16);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.btn-link:hover{ color: var(--text-2); }
+
+.hint{
+  margin: 10px 0 0;
+  font-size: .74rem;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.spinner{
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(4,18,25,.22);
+  border-top-color: #041219;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin{ to{ transform: rotate(360deg); } }
+@keyframes pulse{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+@keyframes rise{ from{ opacity:0; transform: translateY(10px); } to{ opacity:1; transform: none; } }
+@keyframes shimmer{ from{ background-position: -220px 0; } to{ background-position: 220px 0; } }
+
+/* --------------------------------------------------------------------------
+   Results
+   -------------------------------------------------------------------------- */
+.result{
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  animation: rise .4s var(--ease) both;
+}
+.result-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.result-title-wrap{ min-width: 0; }
+.pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--brand-line);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pill[data-kind="sample"]{
+  color: var(--amber);
+  border-color: rgba(240,180,94,.3);
+  background: rgba(240,180,94,.09);
+}
+.pill[data-kind="muted"]{
+  color: var(--text-3);
+  border-color: var(--line);
+  background: rgba(255,255,255,.035);
+}
+.pill[data-kind="device"]{
+  color: var(--mint);
+  border-color: rgba(77,238,200,.28);
+  background: rgba(77,238,200,.08);
+}
+.result-title{
+  margin: 9px 0 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -.012em;
+  overflow-wrap: anywhere;
+}
+.result-meta{
+  margin: 6px 0 0;
+  font-size: .74rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.result-actions{ display: flex; gap: 8px; flex: none; margin-inline-start: auto; }
+
+.notice{
+  margin-top: 16px;
+  padding: 14px 15px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: .84rem;
+  line-height: 1.55;
+  color: var(--text-2);
+  animation: rise .3s var(--ease) both;
+}
+.notice[data-kind="error"]{
+  border-color: rgba(255,114,133,.28);
+  background: rgba(255,114,133,.06);
+  color: #ffd9df;
+}
+.notice[data-kind="info"]{
+  border-color: var(--brand-line);
+  background: var(--brand-soft);
+}
+.notice strong{ display: block; color: var(--text); font-weight: 650; margin-bottom: 3px; }
+.notice[data-kind="error"] strong{ color: #ffe1e5; }
+.notice-actions{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.skeleton{
+  margin-top: 18px;
+  display: grid;
+  gap: 9px;
+}
+.skeleton span{
+  display: block;
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,.045) 25%, rgba(255,255,255,.10) 37%, rgba(255,255,255,.045) 63%);
+  background-size: 440px 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+.skeleton span:nth-child(2){ width: 82%; }
+.skeleton span:nth-child(3){ width: 64%; }
+
+/* --------------------------------------------------------------------------
+   Karaoke preview
+   -------------------------------------------------------------------------- */
+.karaoke{
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: radial-gradient(120% 100% at 50% 0%, rgba(95,227,230,.07), transparent 62%), #0a0c12;
+  padding: 6px 0 0;
+  overflow: hidden;
+}
+.karaoke-viewport{
+  position: relative;
+  height: 136px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
+}
+.karaoke-track{
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  will-change: transform;
+  transition: transform .5s var(--ease);
+}
+.k-line{
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding-inline: 18px;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 500;
+  line-height: 44px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  opacity: .34;
+  transform: scale(.97);
+  transition: opacity .4s var(--ease), transform .4s var(--ease), color .4s var(--ease), filter .4s var(--ease), text-shadow .4s var(--ease);
+}
+.k-line:hover{ opacity: .62; }
+.k-line.is-active{
+  color: #fff;
+  opacity: 1;
+  transform: scale(1.05);
+  filter: none;
+  text-shadow: 0 0 18px rgba(95,227,230,.65);
+}
+.k-line.is-near{ opacity: .56; transform: scale(.985); filter: blur(.3px); }
+.k-line.is-far{ opacity: .26; filter: blur(.9px); }
+.k-line.is-cue:not(.is-active){ font-style: italic; color: var(--text-3); }
+.k-line.is-active.is-cue{ font-style: italic; }
+
+.karaoke-controls{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+.kar-btn{
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--brand-line);
+  background: var(--brand-soft);
+  color: var(--brand);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s var(--ease), background .16s ease;
+}
+.kar-btn:hover{ background: rgba(95,227,230,.16); }
+.kar-btn:active{ transform: scale(.94); }
+
+.kar-progress{
+  position: relative;
+  flex: 1;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.kar-progress::before{
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.09);
+}
+.kar-progress-fill{
+  position: relative;
+  height: 4px;
+  width: 0%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+  box-shadow: 0 0 12px rgba(95,227,230,.55);
+}
+.kar-time{
+  flex: none;
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+
+/* --------------------------------------------------------------------------
+   Raw LRC
+   -------------------------------------------------------------------------- */
+.raw-wrap{ margin-top: 16px; }
+.raw-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.raw-count{ font-weight: 500; letter-spacing: .02em; text-transform: none; }
+
+.lrc{
+  max-height: 260px;
+  overflow: auto;
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,.32);
+  font-family: var(--mono);
+  font-size: .78rem;
+  line-height: 1.7;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.lrc-line{ display: flex; gap: 10px; padding: 1px 14px; }
+.lrc-line:hover{ background: rgba(255,255,255,.03); }
+.lrc-ts{ flex: none; color: var(--brand); opacity: .82; font-variant-numeric: tabular-nums; }
+.lrc-text{ color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.lrc-meta{ padding: 2px 14px; color: var(--text-3); font-style: italic; }
+
+/* --------------------------------------------------------------------------
+   Curator setlist
+   -------------------------------------------------------------------------- */
+.setlist-desc{
+  margin: 14px 0 0;
+  font-size: .85rem;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.setlist{
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.setlist li + li{ border-top: 1px solid var(--line); }
+.track{
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 14px;
+}
+.track-idx{
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: .7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.track-main{ flex: 1; min-width: 0; }
+.track-title{
+  font-size: .89rem;
+  font-weight: 600;
+  letter-spacing: -.005em;
+  overflow-wrap: anywhere;
+}
+.track-sub{
+  margin-top: 2px;
+  font-size: .76rem;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+.track-why{
+  margin-top: 5px;
+  font-size: .77rem;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.track-tags{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.tag{
+  font-size: .66rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+details.raw-details{
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+details.raw-details summary{
+  font-size: .76rem;
+  color: var(--text-3);
+  cursor: pointer;
+  list-style: none;
+}
+details.raw-details summary::-webkit-details-marker{ display: none; }
+details.raw-details summary::before{ content: "▸ "; }
+details.raw-details[open] summary::before{ content: "▾ "; }
+.raw-text{
+  margin: 10px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,.32);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: .74rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* --------------------------------------------------------------------------
+   Equalizer
+   -------------------------------------------------------------------------- */
+.eq-chart{
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 20px;
+  padding: 16px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,0) 70%);
+}
+.band{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.band-val{
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.band-track{
+  position: relative;
+  width: 100%;
+  max-width: 34px;
+  height: 132px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.015));
+  touch-action: none;
+  cursor: ns-resize;
+  -webkit-tap-highlight-color: transparent;
+}
+.band-track:hover{ border-color: var(--line-strong); }
+.band-track::before{
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset-inline: 3px;
+  top: 50%;
+  border-top: 1px solid rgba(255,255,255,.10);
+  pointer-events: none;
+}
+.band-fill{
+  position: absolute;
+  z-index: 1;
+  inset-inline: 3px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(95,227,230,.95), rgba(95,227,230,.28));
+  transition: top .22s var(--ease), height .22s var(--ease), background .22s ease;
+}
+.band-fill[data-sign="neg"]{
+  background: linear-gradient(180deg, rgba(139,147,255,.35), rgba(139,147,255,.9));
+}
+.band-thumb{
+  position: absolute;
+  z-index: 4;
+  inset-inline: 1px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(7,8,12,.65), 0 0 14px rgba(95,227,230,.8);
+  transition: top .22s var(--ease);
+  pointer-events: none;
+}
+.band-track.is-dragging .band-thumb,
+.band-track.is-dragging .band-fill{ transition: none; }
+.band-val.is-zero{ color: var(--text-3); font-weight: 600; }
+.band-freq{
+  font-size: .68rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dsp-row{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* --------------------------------------------------------------------------
+   Vault
+   -------------------------------------------------------------------------- */
+.vault-block{
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.vault-block:first-of-type{ border-top: 0; padding-top: 0; }
+.vault-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.vault-name{ font-size: .88rem; font-weight: 600; }
+.vault-sub{ margin-top: 2px; font-size: .75rem; color: var(--text-3); }
+.vault-state{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.vault-state[data-on="true"]{ color: var(--mint); }
+.vault-state .dot{ width: 6px; height: 6px; }
+.vault-state[data-on="true"] .dot{ background: var(--mint); box-shadow: 0 0 8px rgba(77,238,200,.7); }
+
+.key-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.key-row .input{ flex: 1 1 190px; min-width: 0; }
+.key-actions{
+  display: flex;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.companion-card{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.companion-main{ flex: 1; min-width: 0; }
+.companion-title{ font-size: .84rem; font-weight: 600; }
+.companion-sub{
+  margin-top: 2px;
+  font-size: .74rem;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+.select{
+  width: 100%;
+  appearance: none;
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5l5-5' fill='none' stroke='%23a4acbd' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 15px center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: .9rem;
+  padding: 13px 42px 13px 15px;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15px 13px 42px; }
+.select:hover{ border-color: var(--line-strong); }
+.select:focus{ border-color: var(--brand-line); box-shadow: 0 0 0 4px var(--brand-soft); }
+
+/* --------------------------------------------------------------------------
+   Toasts + live region
+   -------------------------------------------------------------------------- */
+.foot{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  padding: 28px 0 6px;
+  font-size: .7rem;
+  letter-spacing: .015em;
+  color: var(--text-3);
+  text-align: center;
+}
+.foot-sep{ opacity: .45; }
+
+.toasts{
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--safe-bottom) + 20px);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 16px;
+  pointer-events: none;
+}
+.toast{
+  pointer-events: auto;
+  max-width: min(440px, 100%);
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(18,21,31,.97);
+  color: var(--text);
+  font-size: .81rem;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 22px 50px -24px rgba(0,0,0,.95);
+  animation: toastIn .32s var(--ease) both;
+}
+.toast[data-kind="error"]{ border-color: rgba(255,114,133,.42); color: #ffdde2; }
+.toast[data-kind="success"]{ border-color: rgba(77,238,200,.34); }
+.toast.is-leaving{ animation: toastOut .22s ease forwards; }
+
+@keyframes toastIn{
+  from{ opacity: 0; transform: translateY(14px) scale(.97); }
+  to{ opacity: 1; transform: none; }
+}
+@keyframes toastOut{
+  to{ opacity: 0; transform: translateY(8px) scale(.98); }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive + preferences
+   -------------------------------------------------------------------------- */
+@media (min-width: 640px){
+  /* desktop: tabs keep their natural width instead of stretching */
+  .tab{ flex: 0 0 auto; padding: 9px 18px; font-size: .84rem; }
+  .tabs{ gap: 8px; }
+  .eq-chart{ max-width: 520px; margin-inline: auto; }
+  .eq-chart + .hint{ max-width: 520px; margin-inline: auto; }
+  .band-track{ max-width: 40px; }
+  .result-head{ align-items: center; }
+  .karaoke-viewport{ height: 150px; }
+  .k-line{ height: 50px; line-height: 50px; font-size: .86rem; }
+}
+
+@media (max-width: 400px){
+  .tab{ padding: 8px 6px; font-size: .78rem; }
+  .tabs{ gap: 4px; }
+}
+
+@media (max-width: 360px){
+  .brand-sub{ display: none; }
+  .status-chip{ max-width: 40%; padding-inline: 9px; }
+  .eq-chart{ padding-inline: 4px; }
+  .band-track{ height: 112px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
   }
-  @keyframes rotate { to { transform: rotate(360deg); } }
+  .k-line{ transform: none !important; }
+}
+
+@media (prefers-contrast: more){
+  :root{ --line: rgba(255,255,255,.16); --line-strong: rgba(255,255,255,.3); --text-2: #c3c9d6; }
+}
 </style>
 </head>
 <body>
 
-<!-- Safe-Area Status Bar Compliant Header -->
-<header class="header-bar">
-  <div class="header-nav">
-    <button class="btn-icon-back" type="button" onclick="navigateBack()" title="Back">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<div class="aurora" aria-hidden="true"></div>
+<div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<header class="topbar">
+  <div class="shell topbar-inner">
+    <button class="icon-btn" id="btn-back" type="button" aria-label="Go back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
     </button>
-    <div class="header-titles">
-      <h1>Audenic AI Studio</h1>
-      <p>Gemini & Groq Neural Engine</p>
+    <div class="brand">
+      <h1 class="brand-title">Audenic <span class="spark" aria-hidden="true">✦</span></h1>
+      <p class="brand-sub">AI Studio</p>
     </div>
-  </div>
-  <div class="pill-indicator">
-    <span class="dot-online"></span>
-    <span id="label-engine">Active</span>
+    <button class="status-chip" id="status-chip" type="button" data-state="checking" aria-label="Engine status">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="status-text" id="status-text">Checking</span>
+    </button>
   </div>
 </header>
 
-<!-- Restrained Minimalist Tabs -->
-<nav class="segmented-nav" role="tablist">
-  <button class="nav-btn active" onclick="activateTab('lyrics', this)">Lyrics Sync</button>
-  <button class="nav-btn" onclick="activateTab('curator', this)">Curator</button>
-  <button class="nav-btn" onclick="activateTab('eq', this)">Acoustic EQ</button>
-  <button class="nav-btn" onclick="activateTab('vault', this)">Cloud Vault</button>
-</nav>
+<div class="shell">
+  <nav class="tabs" role="tablist" aria-label="AI Studio sections">
+    <button class="tab" id="tab-lyrics" type="button" role="tab" aria-selected="true" aria-controls="pane-lyrics" tabindex="0" data-tab="lyrics">Lyrics</button>
+    <button class="tab" id="tab-curator" type="button" role="tab" aria-selected="false" aria-controls="pane-curator" tabindex="-1" data-tab="curator">Curator</button>
+    <button class="tab" id="tab-eq" type="button" role="tab" aria-selected="false" aria-controls="pane-eq" tabindex="-1" data-tab="eq" aria-label="Acoustic equalizer">EQ</button>
+    <button class="tab" id="tab-vault" type="button" role="tab" aria-selected="false" aria-controls="pane-vault" tabindex="-1" data-tab="vault">Engine</button>
+  </nav>
 
-<!-- Tab 1: Lyrics Sync -->
-<section id="pane-lyrics" class="tab-pane active">
-  <div class="card">
-    <div class="card-top">
-      <h2 class="card-heading">Synchronized Lyrics (.LRC)</h2>
-      <span class="tag-badge">Timestamped</span>
-    </div>
-    <p class="card-intro">Generate time-coded LRC lyrics ready to sync with Audenic Player for local tracks or gospel hymns.</p>
+  <main>
+    <!-- ==================================================================
+         Lyrics
+         ================================================================== -->
+    <section class="panel" id="pane-lyrics" role="tabpanel" aria-labelledby="tab-lyrics" tabindex="0">
+      <div class="surface">
+        <p class="eyebrow">Synchronized lyrics</p>
+        <h2>Turn a track into timed LRC</h2>
+        <p class="lede">Generates <strong>[mm:ss.xx]</strong> lines that scroll in time inside Audenic's karaoke view. Preview the timing here before you save.</p>
 
-    <label class="field-label">Song Title & Artist</label>
-    <input id="input-song" class="text-input" type="text" value="Prince Shema Jr. - ELOHIM ADONAI SHAMMAH" placeholder="e.g. Solomon Mkubwa - Mungu Mwenye Nguvu">
+        <div class="field">
+          <label class="field-label" for="song-input">Song and artist</label>
+          <div class="input-with-action">
+            <input class="input" id="song-input" type="text" placeholder="Artist - Title" autocomplete="off" autocapitalize="words" spellcheck="false">
+            <button class="input-clear" id="song-clear" type="button" aria-label="Clear song field" hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="chips" id="song-chips">
+            <button class="chip" type="button" data-song="Prince Shema Jr. - ELOHIM ADONAI SHAMMAH">Prince Shema Jr.</button>
+            <button class="chip" type="button" data-song="Solomon Mkubwa - Mungu Mwenye Nguvu">Solomon Mkubwa</button>
+            <button class="chip" type="button" data-song="Zoravo - Yale Uliyonitendea">Zoravo</button>
+            <button class="chip" type="button" data-song="Burna Boy - City Boys">Burna Boy</button>
+          </div>
+        </div>
 
-    <div class="chip-group">
-      <button class="pill-chip" onclick="selectSong('Prince Shema Jr. - ELOHIM ADONAI SHAMMAH')">Prince Shema Jr.</button>
-      <button class="pill-chip" onclick="selectSong('Solomon Mkubwa - Mungu Mwenye Nguvu')">Solomon Mkubwa</button>
-      <button class="pill-chip" onclick="selectSong('Zoravo - Yale Uliyonitendea')">Zoravo</button>
-      <button class="pill-chip" onclick="selectSong('Burna Boy - City Boys')">Burna Boy</button>
-    </div>
+        <div class="actions-row">
+          <button class="btn-primary" id="btn-lyrics" type="button">
+            <span class="btn-label">Generate timed lyrics</span>
+          </button>
+          <p class="hint">One request, roughly 10 seconds. Lyrics you already have can be pasted after generation.</p>
+          <button class="btn-link" id="lyrics-sample-btn" type="button">Preview sample output</button>
+        </div>
 
-    <button id="btn-submit-lyrics" class="btn-submit" onclick="requestLyrics()">
-      <span>Generate Timed LRC</span>
-    </button>
-
-    <div id="panel-lyrics-result" class="result-panel">
-      <div class="result-panel-top">
-        <span class="result-panel-title">Synchronized Output</span>
-        <button class="btn-action-small" onclick="copyContent('body-lyrics')">Copy</button>
+        <div class="result" id="lyrics-result" hidden>
+          <div class="result-head">
+            <div class="result-title-wrap">
+              <span class="pill" id="lyrics-badge">Engine</span>
+              <h3 class="result-title" id="lyrics-title">Synchronized lyrics</h3>
+            </div>
+            <div class="result-actions">
+              <button class="btn-ghost" id="lyrics-copy" type="button">Copy</button>
+              <button class="btn-ghost" id="lyrics-save" type="button">Save .lrc</button>
+            </div>
+          </div>
+          <p class="result-meta" id="lyrics-meta"></p>
+          <div id="lyrics-notice"></div>
+          <div id="lyrics-body">
+            <div class="karaoke" id="karaoke">
+              <div class="karaoke-viewport" id="kar-viewport">
+                <div class="karaoke-track" id="kar-track" role="list" aria-label="Timed lyric lines"></div>
+              </div>
+              <div class="karaoke-controls">
+                <button class="kar-btn" id="kar-play" type="button" aria-label="Play lyric preview">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+                </button>
+                <div class="kar-progress" id="kar-progress" role="slider" tabindex="0" aria-label="Lyric position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0:00">
+                  <div class="kar-progress-fill" id="kar-fill"></div>
+                </div>
+                <span class="kar-time" id="kar-time">0:00 / 0:00</span>
+              </div>
+            </div>
+            <div class="raw-wrap">
+              <div class="raw-head">
+                <span>Raw LRC</span>
+                <span class="raw-count" id="lyrics-count"></span>
+              </div>
+              <div class="lrc" id="lyrics-raw"></div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="body-lyrics" class="result-panel-content"></div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- Tab 2: Curator -->
-<section id="pane-curator" class="tab-pane">
-  <div class="card">
-    <div class="card-top">
-      <h2 class="card-heading">Playlist & Mood Curator</h2>
-      <span class="tag-badge">Reasoning</span>
-    </div>
-    <p class="card-intro">Describe any theme, scripture, Sunday service, tempo, or African genre to receive structured audio curation.</p>
+    <!-- ==================================================================
+         Curator
+         ================================================================== -->
+    <section class="panel" id="pane-curator" role="tabpanel" aria-labelledby="tab-curator" tabindex="0" hidden>
+      <div class="surface">
+        <p class="eyebrow">Playlist curator</p>
+        <h2>Describe a mood, get a setlist</h2>
+        <p class="lede">Name the occasion, the tempo or the scripture. You get an ordered set with a reason for every pick, ready to export as <strong>.m3u</strong>.</p>
 
-    <label class="field-label">Theme or Emotion</label>
-    <textarea id="input-curator" class="text-area" placeholder="e.g. Deep acoustic Swahili worship medleys for midnight reflection and prayer"></textarea>
+        <div class="field">
+          <label class="field-label" for="curator-input">Theme or feeling</label>
+          <textarea class="textarea" id="curator-input" placeholder="e.g. Deep acoustic Swahili worship for a midnight prayer service" rows="3"></textarea>
+          <div class="chips" id="curator-chips">
+            <button class="chip" type="button" data-theme="Deep Swahili praise and worship for Sunday morning devotion">Swahili devotion</button>
+            <button class="chip" type="button" data-theme="Uplifting Afro-gospel acoustic vibes with live drums">Afro-gospel</button>
+            <button class="chip" type="button" data-theme="Late night lo-fi study music with warm African piano">Midnight study</button>
+            <button class="chip" type="button" data-theme="High energy workout beats with heavy sub-bass">Workout</button>
+          </div>
+        </div>
 
-    <div class="chip-group">
-      <button class="pill-chip" onclick="selectTheme('Deep Swahili Praise & Worship for Sunday morning devotion')">Swahili Devotion</button>
-      <button class="pill-chip" onclick="selectTheme('Uplifting Afro-Gospel acoustic vibes with energetic rhythms')">Afro-Gospel</button>
-      <button class="pill-chip" onclick="selectTheme('Late night Lo-Fi study music with relaxing African piano')">Midnight Study</button>
-      <button class="pill-chip" onclick="selectTheme('High energy gym workout beats with heavy bass')">High Energy Workout</button>
-    </div>
+        <div class="actions-row">
+          <button class="btn-primary" id="btn-curator" type="button">
+            <span class="btn-label">Curate setlist</span>
+          </button>
+          <p class="hint">Ten tracks with artist, genre, tempo and a one-line reason.</p>
+          <button class="btn-link" id="curator-sample-btn" type="button">Preview sample output</button>
+        </div>
 
-    <button id="btn-submit-curator" class="btn-submit" onclick="requestCuration()">
-      <span>Curate Playlist</span>
-    </button>
-
-    <div id="panel-curator-result" class="result-panel">
-      <div class="result-panel-top">
-        <span class="result-panel-title">Curated Selection</span>
-        <button class="btn-action-small" onclick="copyContent('body-curator')">Copy</button>
+        <div class="result" id="curator-result" hidden>
+          <div class="result-head">
+            <div class="result-title-wrap">
+              <span class="pill" id="curator-badge">Engine</span>
+              <h3 class="result-title" id="curator-title">Setlist</h3>
+            </div>
+            <div class="result-actions">
+              <button class="btn-ghost" id="curator-copy" type="button">Copy</button>
+              <button class="btn-ghost" id="curator-save" type="button">Save .m3u</button>
+            </div>
+          </div>
+          <p class="result-meta" id="curator-meta"></p>
+          <div id="curator-notice"></div>
+          <div id="curator-body">
+            <p class="setlist-desc" id="curator-desc"></p>
+            <ol class="setlist" id="curator-list"></ol>
+            <details class="raw-details" id="curator-raw-wrap" hidden>
+              <summary>Raw model response</summary>
+              <pre class="raw-text" id="curator-raw"></pre>
+            </details>
+          </div>
+        </div>
       </div>
-      <div id="body-curator" class="result-panel-content"></div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- Tab 3: Acoustic EQ -->
-<section id="pane-eq" class="tab-pane">
-  <div class="card">
-    <div class="card-top">
-      <h2 class="card-heading">5-Band Acoustic Equalizer</h2>
-      <span class="tag-badge">Parametric</span>
-    </div>
-    <p class="card-intro">Optimal gain curves for Lark's native Equalizer bands (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz).</p>
+    <!-- ==================================================================
+         EQ
+         ================================================================== -->
+    <section class="panel" id="pane-eq" role="tabpanel" aria-labelledby="tab-eq" tabindex="0" hidden>
+      <div class="surface">
+        <p class="eyebrow">Acoustic DSP</p>
+        <h2>Match the curve to the record</h2>
+        <p class="lede">The five bands Audenic's native equalizer exposes. Drag to shape a curve, or let the engine propose gains for a sound.</p>
 
-    <div class="eq-container">
-      <div class="eq-slider-col">
-        <span id="val-60" class="eq-db-label">+4dB</span>
-        <div class="eq-rail"><div id="bar-60" class="eq-thumb" style="height: 65%;"></div></div>
-        <span class="eq-freq-label">60Hz</span>
+        <div class="eq-chart" id="eq-chart" role="group" aria-label="Five band equalizer, -10 to +10 decibels">
+          <div class="band">
+            <span class="band-val" id="val-60">0 dB</span>
+            <div class="band-track" id="track-60" role="slider" tabindex="0" aria-label="60 Hz, sub-bass" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-60"></div><div class="band-thumb" id="thumb-60"></div></div>
+            <span class="band-freq">60 Hz</span>
+          </div>
+          <div class="band">
+            <span class="band-val" id="val-230">0 dB</span>
+            <div class="band-track" id="track-230" role="slider" tabindex="0" aria-label="230 Hz, bass" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-230"></div><div class="band-thumb" id="thumb-230"></div></div>
+            <span class="band-freq">230 Hz</span>
+          </div>
+          <div class="band">
+            <span class="band-val" id="val-910">0 dB</span>
+            <div class="band-track" id="track-910" role="slider" tabindex="0" aria-label="910 Hz, midrange" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-910"></div><div class="band-thumb" id="thumb-910"></div></div>
+            <span class="band-freq">910 Hz</span>
+          </div>
+          <div class="band">
+            <span class="band-val" id="val-36k">0 dB</span>
+            <div class="band-track" id="track-36k" role="slider" tabindex="0" aria-label="3.6 kilohertz, presence" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-36k"></div><div class="band-thumb" id="thumb-36k"></div></div>
+            <span class="band-freq">3.6 kHz</span>
+          </div>
+          <div class="band">
+            <span class="band-val" id="val-14k">0 dB</span>
+            <div class="band-track" id="track-14k" role="slider" tabindex="0" aria-label="14 kilohertz, air" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-14k"></div><div class="band-thumb" id="thumb-14k"></div></div>
+            <span class="band-freq">14 kHz</span>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:8px">The faint line marks 0 dB. Drag a band, or focus one and use ↑ ↓ · press 0 to reset.</p>
+
+        <div class="chips" id="eq-presets">
+          <button class="chip" type="button" data-preset="worship" aria-pressed="false">Church worship</button>
+          <button class="chip" type="button" data-preset="bass" aria-pressed="false">Subwoofer</button>
+          <button class="chip" type="button" data-preset="vocal" aria-pressed="false">Clear vocal</button>
+          <button class="chip" type="button" data-preset="acoustic" aria-pressed="false">Acoustic</button>
+          <button class="chip" type="button" data-preset="flat" aria-pressed="false">Flat</button>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="eq-input">Describe the sound</label>
+          <input class="input" id="eq-input" type="text" placeholder="e.g. Warm tape, punchy kick" autocomplete="off">
+        </div>
+
+        <div class="actions-row">
+          <button class="btn-primary" id="btn-eq" type="button">
+            <span class="btn-label">Suggest gains</span>
+          </button>
+          <button class="btn-link" id="eq-sample-btn" type="button">Preview sample output</button>
+        </div>
+
+        <div class="result" id="eq-result" hidden>
+          <div class="result-head">
+            <div class="result-title-wrap">
+              <span class="pill" id="eq-badge">Engine</span>
+              <h3 class="result-title" id="eq-title">Suggested curve</h3>
+            </div>
+            <div class="result-actions">
+              <button class="btn-ghost" id="eq-copy" type="button">Copy profile</button>
+            </div>
+          </div>
+          <p class="result-meta" id="eq-meta"></p>
+          <div id="eq-notice"></div>
+          <div id="eq-body">
+            <p class="setlist-desc" id="eq-summary"></p>
+            <div class="dsp-row" id="eq-dsp"></div>
+          </div>
+        </div>
       </div>
-      <div class="eq-slider-col">
-        <span id="val-230" class="eq-db-label">+2dB</span>
-        <div class="eq-rail"><div id="bar-230" class="eq-thumb" style="height: 55%;"></div></div>
-        <span class="eq-freq-label">230Hz</span>
+    </section>
+
+    <!-- ==================================================================
+         Engine / Vault
+         ================================================================== -->
+    <section class="panel" id="pane-vault" role="tabpanel" aria-labelledby="tab-vault" tabindex="0" hidden>
+      <div class="surface">
+        <p class="eyebrow">Engine and keys</p>
+        <h2>Connect an AI engine</h2>
+        <p class="lede">The Studio can talk to Google Gemini, Groq, or a local companion daemon. Keys entered here stay on this device.</p>
+
+        <div class="field">
+          <label class="field-label" for="provider-select">Preferred engine</label>
+          <select class="select" id="provider-select">
+            <option value="auto">Automatic — Gemini, then Groq</option>
+            <option value="gemini">Google Gemini only</option>
+            <option value="groq">Groq only</option>
+          </select>
+        </div>
+
+        <div class="vault-block">
+          <div class="vault-head">
+            <div class="vault-name">Local companion</div>
+            <span class="vault-state" id="companion-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="companion-label">Checking</span></span>
+          </div>
+          <div class="vault-sub">Keeps keys server-side and proxies every request.</div>
+          <div class="companion-card" style="margin-top:12px">
+            <div class="companion-main">
+              <div class="companion-title" id="companion-title">127.0.0.1:8080</div>
+              <div class="companion-sub" id="companion-sub">Not reached yet. Start it with <code>python gemini_companion.py --serve</code>.</div>
+            </div>
+            <button class="btn-ghost" id="btn-recheck" type="button">Recheck</button>
+          </div>
+        </div>
+
+        <div class="vault-block">
+          <div class="vault-head">
+            <div class="vault-name">Google Gemini</div>
+            <span class="vault-state" id="gemini-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="gemini-label">No key</span></span>
+          </div>
+          <div class="vault-sub">Primary reasoning engine · <span class="mono">gemini-3.8-flash</span></div>
+          <div class="key-row">
+            <input class="input" id="key-gemini" type="password" placeholder="Paste a Gemini API key" autocomplete="off" spellcheck="false" aria-label="Gemini API key">
+            <div class="key-actions">
+              <button class="btn-ghost" id="btn-save-gemini" type="button">Save key</button>
+              <button class="btn-ghost" id="btn-clear-gemini" type="button" aria-label="Remove saved Gemini key">Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-block">
+          <div class="vault-head">
+            <div class="vault-name">Groq</div>
+            <span class="vault-state" id="groq-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="groq-label">No key</span></span>
+          </div>
+          <div class="vault-sub">Fast fallback · <span class="mono">openai/gpt-oss-120b</span></div>
+          <div class="key-row">
+            <input class="input" id="key-groq" type="password" placeholder="Paste a Groq API key" autocomplete="off" spellcheck="false" aria-label="Groq API key">
+            <div class="key-actions">
+              <button class="btn-ghost" id="btn-save-groq" type="button">Save key</button>
+              <button class="btn-ghost" id="btn-clear-groq" type="button" aria-label="Remove saved Groq key">Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn-primary" id="btn-diag" type="button">
+            <span class="btn-label">Run connection test</span>
+          </button>
+          <p class="hint">Sends one tiny prompt and reports which engine answered, and how fast.</p>
+        </div>
+
+        <div id="diag-notice"></div>
+        <div class="result" id="diag-result" hidden>
+          <div class="result-head">
+            <div class="result-title-wrap">
+              <span class="pill" id="diag-badge">Diagnostics</span>
+              <h3 class="result-title">Connection report</h3>
+            </div>
+          </div>
+          <div class="lrc" id="diag-output" style="max-height:none"></div>
+        </div>
+
+        <p class="hint" style="margin-top:22px">
+          Keys are stored with <span class="mono">localStorage</span> on this device only — never bundled in the APK.
+          Anyone with the unlocked device can read them, so prefer the companion when you can.
+        </p>
       </div>
-      <div class="eq-slider-col">
-        <span id="val-910" class="eq-db-label">0dB</span>
-        <div class="eq-rail"><div id="bar-910" class="eq-thumb" style="height: 50%;"></div></div>
-        <span class="eq-freq-label">910Hz</span>
-      </div>
-      <div class="eq-slider-col">
-        <span id="val-36k" class="eq-db-label">+3dB</span>
-        <div class="eq-rail"><div id="bar-36k" class="eq-thumb" style="height: 60%;"></div></div>
-        <span class="eq-freq-label">3.6kHz</span>
-      </div>
-      <div class="eq-slider-col">
-        <span id="val-14k" class="eq-db-label">+5dB</span>
-        <div class="eq-rail"><div id="bar-14k" class="eq-thumb" style="height: 72%;"></div></div>
-        <span class="eq-freq-label">14kHz</span>
-      </div>
-    </div>
+    </section>
+  </main>
 
-    <div class="chip-group">
-      <button class="pill-chip" onclick="setPreset('worship')">Church Worship</button>
-      <button class="pill-chip" onclick="setPreset('bass')">Subwoofer Bass</button>
-      <button class="pill-chip" onclick="setPreset('vocal')">Clear Vocal</button>
-      <button class="pill-chip" onclick="setPreset('acoustic')">Acoustic Clarity</button>
-    </div>
+  <footer class="foot">
+    <span>Audenic AI Studio</span>
+    <span class="foot-sep" aria-hidden="true">·</span>
+    <span>Gemini 3.8 Flash → Groq</span>
+    <span class="foot-sep" aria-hidden="true">·</span>
+    <span>Keys stay on your device</span>
+  </footer>
+</div>
 
-    <label class="field-label">Custom Profile Description</label>
-    <input id="input-eq" class="text-input" type="text" placeholder="e.g. Warm analog tape sound with punchy kick drum">
-
-    <div style="margin-top: 14px;">
-      <button id="btn-submit-eq" class="btn-submit" onclick="requestEQ()">
-        <span>Calculate Optimal Gains</span>
-      </button>
-    </div>
-
-    <div id="panel-eq-result" class="result-panel">
-      <div class="result-panel-top">
-        <span class="result-panel-title">Equalizer Curve</span>
-      </div>
-      <div id="body-eq" class="result-panel-content"></div>
-    </div>
-  </div>
-</section>
-
-<!-- Tab 4: Cloud Vault -->
-<section id="pane-vault" class="tab-pane">
-  <div class="card">
-    <div class="card-top">
-      <h2 class="card-heading">Dynamic AI Vault</h2>
-      <span class="tag-badge">Zero-Hardcode</span>
-    </div>
-    <p class="card-intro">Inference keys are dynamically synchronized via Cloud Vault cache. No plain secret is stored in client APK source.</p>
-
-    <div class="vault-card-row">
-      <div>
-        <div class="vault-card-title">Groq Neural Cluster (LLaMA / Qwen)</div>
-        <div class="vault-card-sub">Ultra-fast generation (300-800 tok/s)</div>
-      </div>
-      <span class="vault-badge-ok">Active</span>
-    </div>
-
-    <div class="vault-card-row">
-      <div>
-        <div class="vault-card-title">Google Gemini 3.8 Flash</div>
-        <div class="vault-card-sub">Deep reasoning & Multimodal fallback</div>
-      </div>
-      <span class="vault-badge-ok">Linked</span>
-    </div>
-
-    <div class="vault-card-row">
-      <div>
-        <div class="vault-card-title">Firestore Vault Gateway</div>
-        <div class="vault-card-sub">projects/audenic-cloud/config/ai_vault</div>
-      </div>
-      <span class="vault-badge-ok">Synced</span>
-    </div>
-
-    <div style="margin-top: 14px;">
-      <label class="field-label">Vault Key (Stored in Private Device Cache)</label>
-      <input id="input-vault-key" class="text-input" type="password" placeholder="Enter custom inference key or leave empty for Companion Vault">
-      <div style="margin-top: 8px; display: flex; gap: 8px;">
-        <button class="btn-action-small" type="button" onclick="saveVaultKey()">Save Cache</button>
-        <button class="btn-action-small" type="button" onclick="clearVaultKey()">Clear</button>
-      </div>
-    </div>
-
-    <div style="margin-top: 16px;">
-      <button class="btn-submit" onclick="testPing()">
-        <span>Test Latency Diagnostics</span>
-      </button>
-    </div>
-
-    <div id="panel-vault-result" class="result-panel">
-      <div class="result-panel-top">
-        <span class="result-panel-title">Diagnostics</span>
-      </div>
-      <div id="body-vault" class="result-panel-content"></div>
-    </div>
-  </div>
-</section>
+<div class="toasts" id="toasts" aria-hidden="true"></div>
 
 <script>
-// Dynamic Cloud Vault Resolver - Zero hardcoded secrets in codebase
-async function resolveVaultKey() {
-  let key = localStorage.getItem("audenic_groq_key");
-  if (key && key.trim()) return key.trim();
+/* ============================================================================
+   Core — pure helpers, no DOM access. Tested by core.test.mjs.
+   Exposed on window.AudenicCore so the UI layer (and tests) can share them.
+   ========================================================================== */
+(function (global) {
+  'use strict';
 
-  try {
-    const res = await fetch("http://127.0.0.1:8080/api/vault", { signal: AbortSignal.timeout(1500) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.groq_key) {
-        localStorage.setItem("audenic_groq_key", data.groq_key);
-        return data.groq_key;
+  function clamp(n, lo, hi) {
+    n = Number(n);
+    if (isNaN(n)) n = 0;
+    return Math.min(hi, Math.max(lo, n));
+  }
+
+  function pad2(n) {
+    n = Math.floor(Math.abs(Number(n) || 0));
+    return n < 10 ? '0' + n : String(n);
+  }
+
+  /** 74.5 -> "01:14.50" (LRC timestamp body) */
+  function lrcStamp(seconds) {
+    var s = Math.max(0, Number(seconds) || 0);
+    var m = Math.floor(s / 60);
+    var rest = s - m * 60;
+    var whole = Math.floor(rest);
+    var centis = Math.round((rest - whole) * 100);
+    if (centis === 100) { centis = 0; whole += 1; }
+    if (whole === 60) { whole = 0; m += 1; }
+    return pad2(m) + ':' + pad2(whole) + '.' + pad2(centis);
+  }
+
+  /** 74.5 -> "1:14" */
+  function formatClock(seconds) {
+    var s = Math.max(0, Math.floor(Number(seconds) || 0));
+    return Math.floor(s / 60) + ':' + pad2(s % 60);
+  }
+
+  /** Strip ``` fences, leading/trailing chatter fences and stray code markers. */
+  function stripFences(raw) {
+    if (!raw) return '';
+    var text = String(raw).trim();
+    text = text.replace(/^```[a-zA-Z0-9_-]*\s*\n?/, '');
+    text = text.replace(/\n?```\s*$/, '');
+    return text.trim();
+  }
+
+  /** Pull the first JSON object/array out of a model reply. Returns null. */
+  function extractJSON(raw) {
+    if (!raw) return null;
+    var text = stripFences(raw);
+    var start = text.search(/[\[{]/);
+    if (start === -1) return null;
+    var open = text.charAt(start);
+    var close = open === '{' ? '}' : ']';
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+    for (var i = start; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (inString) {
+        if (escaped) { escaped = false; }
+        else if (ch === '\\') { escaped = true; }
+        else if (ch === '"') { inString = false; }
+        continue;
+      }
+      if (ch === '"') { inString = true; continue; }
+      if (ch === open) depth++;
+      else if (ch === close) {
+        depth--;
+        if (depth === 0) {
+          var slice = text.slice(start, i + 1);
+          try { return JSON.parse(slice); } catch (e) { return null; }
+        }
       }
     }
-  } catch (e) {
-    // Companion daemon not reachable
-  }
-  return "";
-}
-
-function navigateBack() {
-  if (window.history.length > 1) {
-    window.history.back();
-  } else {
-    window.close();
-  }
-}
-
-function activateTab(tabName, btn) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  const target = document.getElementById('pane-' + tabName);
-  if (target) target.classList.add('active');
-}
-
-function selectSong(title) {
-  document.getElementById('input-song').value = title;
-}
-
-function selectTheme(theme) {
-  document.getElementById('input-curator').value = theme;
-}
-
-/**
- * Strips raw markdown tokens (###, **, *, |, ---) from AI response
- * to ensure clean, publication-grade presentation.
- */
-function sanitizeText(raw) {
-  if (!raw) return "";
-  return raw
-    .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
-    .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
-    .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
-    .replace(/\*(.*?)\*/g, '$1') // Italics
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    .replace(/`{3}[\s\S]*?`{3}/g, m => m.replace(/`{3}/g, ''))
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/^[-*+]\s+/gm, '• ') // Standardize bullets
-    .replace(/^\s*\|\s*/gm, '') // Strip table borders
-    .replace(/\s*\|\s*$/gm, '')
-    .replace(/\s*\|\s*/g, '  —  ')
-    .replace(/^-{3,}\s*$/gm, '') // Horizontal dividers
-    .trim();
-}
-
-function saveVaultKey() {
-  const k = document.getElementById('input-vault-key').value.trim();
-  if (k) {
-    localStorage.setItem("audenic_groq_key", k);
-    alert("Key saved to private device cache.");
-  }
-}
-
-function clearVaultKey() {
-  localStorage.removeItem("audenic_groq_key");
-  document.getElementById('input-vault-key').value = "";
-  alert("Device vault cache cleared.");
-}
-
-async function executeAI(prompt, instruction = "") {
-  const key = await resolveVaultKey();
-  if (!key) {
-    throw new Error("No active API key found. Please enter your key in the Cloud Vault tab or start the companion server.");
+    return null;
   }
 
-  const endpoint = "https://api.groq.com/openai/v1/chat/completions";
-  const messages = [];
-  if (instruction) messages.push({ role: "system", content: instruction });
-  messages.push({ role: "user", content: prompt });
+  /**
+   * Parse LRC text into { meta, lines:[{time, text}] }.
+   * Tolerates [mm:ss], [mm:ss.xx], [mm:ss:xx], multiple timestamps per line,
+   * and [offset:ms].
+   */
+  function parseLRC(raw) {
+    var meta = {};
+    var lines = [];
+    if (!raw) return { meta: meta, lines: lines };
 
-  const tryCall = async (model) => {
-    return await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + key,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ model: model, messages: messages, temperature: 0.35 })
+    var text = String(raw).replace(/\r\n?/g, '\n');
+    var offsetSec = 0;
+    var offsetMatch = text.match(/^\[offset:\s*([+-]?\d+)\s*\]/im);
+    if (offsetMatch) offsetSec = (parseInt(offsetMatch[1], 10) || 0) / 1000;
+
+    text.split('\n').forEach(function (row) {
+      var line = row.trim();
+      if (!line) return;
+
+      var metaMatch = line.match(/^\[(ti|ar|al|by|au|length|offset|re|ve):([^\]]*)\]/i);
+      if (metaMatch) {
+        var key = metaMatch[1].toLowerCase();
+        meta[key] = metaMatch[2].trim();
+      }
+
+      var times = [];
+      var rest = line;
+      var tag = /^\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/;
+      var hit;
+      while ((hit = rest.match(tag))) {
+        var minutes = parseInt(hit[1], 10);
+        var seconds = parseInt(hit[2], 10);
+        var frac = hit[3] || '0';
+        var millis = frac.length === 1 ? parseInt(frac, 10) * 100
+                   : frac.length === 2 ? parseInt(frac, 10) * 10
+                   : parseInt(frac.slice(0, 3), 10);
+        times.push(minutes * 60 + seconds + millis / 1000 + offsetSec);
+        rest = rest.slice(hit[0].length);
+      }
+
+      var body = rest.trim().replace(/\s+/g, ' ');
+
+      if (!times.length) {
+        if (body && !metaMatch) lines.push({ time: -1, text: body });
+        return;
+      }
+      times.forEach(function (t) {
+        lines.push({ time: t, text: body });
+      });
     });
-  };
 
-  let resp = await tryCall("qwen/qwen3.8-27b");
-  if (!resp.ok) {
-    resp = await tryCall("openai/gpt-oss-120b");
-  }
-  if (!resp.ok) {
-    throw new Error("HTTP " + resp.status + ": Service momentarily unavailable");
+    lines.sort(function (a, b) { return a.time - b.time; });
+    var timed = lines.filter(function (l) { return l.time >= 0; });
+    if (timed.length) lines = timed;
+    return { meta: meta, lines: lines };
   }
 
-  const json = await resp.json();
-  return json.choices[0].message.content;
-}
-
-async function requestLyrics() {
-  const song = document.getElementById('input-song').value.trim();
-  if (!song) return;
-
-  const btn = document.getElementById('btn-submit-lyrics');
-  const panel = document.getElementById('panel-lyrics-result');
-  const body = document.getElementById('body-lyrics');
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-indicator"></span> Transcribing...';
-  panel.style.display = 'block';
-  body.textContent = "Connecting to Audenic Neural Engine...\nSyncing timecodes for '" + song + "'...";
-
-  try {
-    const prompt = `Generate a timestamped .LRC synchronized lyrics file for "${song}". 
-Use exact format: [mm:ss.xx] Lyrics. Output raw LRC lyrics only, zero markdown symbols or code blocks.`;
-    const res = await executeAI(prompt, "You are an automated LRC synchronizer audio processor.");
-    body.textContent = sanitizeText(res);
-  } catch (err) {
-    body.textContent = `[00:00.00] ${song}\n[00:14.20] Instrumental Intro\n[00:28.50] Verse 1\n[01:02.10] Chorus\n[01:40.30] Verse 2\n[02:18.00] Chorus\n[03:05.00] Outro`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Generate Timed LRC</span>';
+  function isCueLine(text) {
+    if (!text) return false;
+    return /^[\(\[]?\s*(intro|outro|verse|pre[- ]?chorus|chorus|bridge|hook|refrain|instrumental|interlude|solo|spoken|repeat|ad-?lib|breakdown|drop|fade)/i
+      .test(String(text).trim());
   }
-}
 
-async function requestCuration() {
-  const prompt = document.getElementById('input-curator').value.trim();
-  if (!prompt) return;
-
-  const btn = document.getElementById('btn-submit-curator');
-  const panel = document.getElementById('panel-curator-result');
-  const body = document.getElementById('body-curator');
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-indicator"></span> Curating selection...';
-  panel.style.display = 'block';
-  body.textContent = "Analyzing musical harmonies, timbre, and cultural resonance...";
-
-  try {
-    const aiPrompt = `Curate a 5-track selection for: "${prompt}".
-Include track title, artist, genre, recommended BPM, and 1 concise sentence explaining why it fits. Do not use markdown headers or table pipes. Format cleanly with bullet points.`;
-    const res = await executeAI(aiPrompt, "You are Audenic's premier musicologist.");
-    body.textContent = sanitizeText(res);
-  } catch (err) {
-    body.textContent = "Unable to fetch live curation: " + err.message;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Curate Playlist</span>';
-  }
-}
-
-function setPreset(type) {
-  const presets = {
-    worship: { b60: 4, b230: 2, b910: 0, b36: 3, b14: 5, note: "Warm church choir resonance with clear pastoral vocals and airy strings." },
-    bass: { b60: 8, b230: 5, b910: -1, b36: 1, b14: 2, note: "Subwoofer deep punch for outdoor systems and bass-heavy arrangements." },
-    vocal: { b60: -2, b230: 1, b910: 4, b36: 5, b14: 3, note: "Crystal speech clarity, attenuating low rumble while preserving vocal presence." },
-    acoustic: { b60: 2, b230: 1, b910: 2, b36: 4, b14: 6, note: "Natural acoustic guitar attack with crisp high-frequency string definition." }
-  };
-  const p = presets[type];
-  if (!p) return;
-  drawBars(p.b60, p.b230, p.b910, p.b36, p.b14);
-
-  const panel = document.getElementById('panel-eq-result');
-  const body = document.getElementById('body-eq');
-  panel.style.display = 'block';
-  body.textContent = `Applied Profile: ${type.toUpperCase()}\nCurve: 60Hz (${p.b60 >= 0 ? '+' : ''}${p.b60}dB), 230Hz (${p.b230 >= 0 ? '+' : ''}${p.b230}dB), 910Hz (${p.b910 >= 0 ? '+' : ''}${p.b910}dB), 3.6kHz (${p.b36 >= 0 ? '+' : ''}${p.b36}dB), 14kHz (${p.b14 >= 0 ? '+' : ''}${p.b14}dB)\n\nCharacteristics:\n${p.note}`;
-}
-
-function drawBars(b60, b230, b910, b36, b14) {
-  const setBar = (id, val) => {
-    document.getElementById('val-' + id).textContent = (val >= 0 ? '+' : '') + val + 'dB';
-    const percent = Math.min(100, Math.max(10, 50 + (val * 4)));
-    document.getElementById('bar-' + id).style.height = percent + '%';
-  };
-  setBar('60', b60);
-  setBar('230', b230);
-  setBar('910', b910);
-  setBar('36k', b36);
-  setBar('14k', b14);
-}
-
-async function requestEQ() {
-  const prompt = document.getElementById('input-eq').value.trim();
-  if (!prompt) return;
-
-  const btn = document.getElementById('btn-submit-eq');
-  const panel = document.getElementById('panel-eq-result');
-  const body = document.getElementById('body-eq');
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-indicator"></span> Calculating gains...';
-  panel.style.display = 'block';
-  body.textContent = "Calculating acoustic frequency curve...";
-
-  try {
-    const aiPrompt = `Target audio sound: "${prompt}".
-Compute exact gains (-10 to +10 dB) for 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz.
-Format lines exactly as:
-60Hz: [val]dB
-230Hz: [val]dB
-910Hz: [val]dB
-3.6kHz: [val]dB
-14kHz: [val]dB
-Summary: [1-2 sentences on why]
-Do not use markdown headers or asterisks.`;
-    const res = await executeAI(aiPrompt, "You are an audio mastering technician.");
-    body.textContent = sanitizeText(res);
-
-    const m60 = res.match(/60Hz:\s*([+-]?\d+)/i);
-    const m230 = res.match(/230Hz:\s*([+-]?\d+)/i);
-    const m910 = res.match(/910Hz:\s*([+-]?\d+)/i);
-    const m36 = res.match(/3\.6kHz:\s*([+-]?\d+)/i);
-    const m14 = res.match(/14kHz:\s*([+-]?\d+)/i);
-    if (m60 && m230 && m910 && m36 && m14) {
-      drawBars(parseInt(m60[1]), parseInt(m230[1]), parseInt(m910[1]), parseInt(m36[1]), parseInt(m14[1]));
+  function asText(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value.trim();
+    if (typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(', ');
+    if (typeof value === 'object') {
+      return asText(value.name || value.title || value.artist || '');
     }
-  } catch (err) {
-    body.textContent = "Error: " + err.message;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Calculate Optimal Gains</span>';
+    return '';
   }
-}
 
-async function testPing() {
-  const panel = document.getElementById('panel-vault-result');
-  const body = document.getElementById('body-vault');
-  panel.style.display = 'block';
-  body.textContent = "Testing network latency to Groq / Gemini cloud clusters...";
-
-  const start = Date.now();
-  try {
-    const ping = await executeAI("Ping reply in 1 word", "Be ultra-brief");
-    const ms = Date.now() - start;
-    body.textContent = `Status: ONLINE (HTTP 200)\nLatency: ${ms}ms\nActive Engine: Groq High-Speed Cluster\nVerification: "${sanitizeText(ping)}"\n\nDynamic Vault:\n• Keys resolved dynamically at runtime\n• Zero hardcoded credentials in application binary`;
-  } catch (err) {
-    body.textContent = "Diagnostics error: " + err.message;
+  function trackFrom(item, index) {
+    if (!item) return null;
+    if (typeof item === 'string') {
+      var parts = item.split(/\s+[—–-]\s+/);
+      return {
+        title: (parts[1] || parts[0] || '').trim(),
+        artist: (parts[1] ? parts[0] : '').trim(),
+        genre: '', bpm: '', why: '', duration: ''
+      };
+    }
+    if (typeof item !== 'object') return null;
+    var title = asText(item.title || item.name || item.song || item.track);
+    var artist = asText(item.artist || item.by || item.creator || item.band);
+    if (!title && artist) { title = artist; artist = ''; }
+    if (!title) return null;
+    var duration = item.durationSec || item.duration || item.seconds || '';
+    if (duration && /^\d+$/.test(String(duration))) {
+      duration = formatClock(Number(duration));
+    }
+    return {
+      title: title,
+      artist: artist,
+      genre: asText(item.genre || item.style || item.category),
+      bpm: asText(item.bpm || item.tempo),
+      why: asText(item.why || item.reason || item.note || item.explanation || item.description),
+      duration: asText(duration),
+      index: index
+    };
   }
-}
 
-function copyContent(id) {
-  const txt = document.getElementById(id).textContent;
-  navigator.clipboard.writeText(txt).then(() => alert("Copied to clipboard"));
-}
+  /** Normalise any curator reply into { title, description, tracks[] }. */
+  function normaliseCurator(data, fallbackText) {
+    var out = { title: '', description: '', tracks: [] };
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      out.title = asText(data.playlistTitle || data.title || data.name);
+      out.description = asText(data.description || data.summary || data.mood);
+      var rawTracks = data.tracks || data.tracklist || data.songs || data.items || data.playlist;
+      if (Array.isArray(rawTracks)) {
+        rawTracks.forEach(function (item, i) {
+          var t = trackFrom(item, i);
+          if (t) out.tracks.push(t);
+        });
+      }
+    } else if (Array.isArray(data)) {
+      data.forEach(function (item, i) {
+        var t = trackFrom(item, i);
+        if (t) out.tracks.push(t);
+      });
+    }
+
+    if (!out.tracks.length && fallbackText) {
+      // Last resort: keep the model's prose rather than showing an empty panel.
+      out.description = String(fallbackText).trim();
+    }
+
+    out.tracks = out.tracks.slice(0, 30);
+    return out;
+  }
+
+  var BAND_KEYS = ['60', '230', '910', '36k', '14k'];
+  var BAND_ALIASES = {
+    '60': /(^|\D)60(\D|$)/,
+    '230': /230/,
+    '910': /910/,
+    '36k': /(3\.?6\s*k|3600)/i,
+    '14k': /(14\s*k|14000)/i
+  };
+
+  /** Normalise EQ replies from any of the shapes the model might emit. */
+  function normaliseEQ(data) {
+    var out = { bands: {}, bassBoost: '', virtualizer: '', reverb: '', summary: '' };
+    if (!data || typeof data !== 'object') return out;
+
+    var source = data.bands || data.eqBandsDb || data.equalizer || data.eq || data.gains || data;
+    var i, key, match;
+
+    if (Array.isArray(source)) {
+      source.forEach(function (item) {
+        if (!item || typeof item !== 'object') return;
+        var freq = asText(item.frequency || item.freq || item.band);
+        var gain = item.gain != null ? item.gain : item.value;
+        for (i = 0; i < BAND_KEYS.length; i++) {
+          key = BAND_KEYS[i];
+          if (BAND_ALIASES[key].test(freq)) out.bands[key] = clamp(Math.round(Number(gain)), -10, 10);
+        }
+      });
+    } else if (source && typeof source === 'object') {
+      Object.keys(source).forEach(function (rawKey) {
+        var value = source[rawKey];
+        if (value && typeof value === 'object') {
+          value = value.gain != null ? value.gain : (value.value != null ? value.value : value.db);
+        }
+        if (typeof value !== 'number' && !/^[-+]?\d+(\.\d+)?$/.test(String(value).trim())) return;
+        for (i = 0; i < BAND_KEYS.length; i++) {
+          key = BAND_KEYS[i];
+          match = BAND_ALIASES[key];
+          if (match.test(rawKey)) out.bands[key] = clamp(Math.round(Number(value)), -10, 10);
+        }
+      });
+    }
+
+    function pct(v) {
+      if (v == null || v === '') return '';
+      var n = Number(String(v).replace(/[^\d.+-]/g, ''));
+      if (isNaN(n)) return '';
+      return clamp(Math.round(n), 0, 100) + '%';
+    }
+    out.bassBoost = pct(data.bassBoostPct != null ? data.bassBoostPct : data.bassBoost);
+    out.virtualizer = pct(data.virtualizerPct != null ? data.virtualizerPct : data.virtualizer);
+    out.reverb = asText(data.reverbPreset || data.reverb || data.space);
+    out.summary = asText(data.reasoning || data.summary || data.note || data.explanation);
+
+    if (!Object.keys(out.bands).length) {
+      // Fall back to the JSON blob's prose so the panel is never blank.
+      out.summary = out.summary || asText(data.message);
+    }
+    return out;
+  }
+
+  function bandText(bands) {
+    var labels = { '60': '60Hz', '230': '230Hz', '910': '910Hz', '36k': '3.6kHz', '14k': '14kHz' };
+    return BAND_KEYS.map(function (k) {
+      var v = bands && bands[k] != null ? bands[k] : 0;
+      return labels[k] + ' ' + (v >= 0 ? '+' : '') + v + 'dB';
+    }).join(' · ');
+  }
+
+  function m3uFrom(curator, opts) {
+    opts = opts || {};
+    var title = (curator && curator.title) || opts.fallbackTitle || 'Audenic Playlist';
+    var tracks = (curator && curator.tracks) || [];
+    var lines = ['#EXTM3U', '#PLAYLIST:' + title, ''];
+    if (curator && curator.description) lines.push('# ' + curator.description.replace(/\n+/g, ' '), '');
+    tracks.forEach(function (t) {
+      var name = (t.artist ? t.artist + ' - ' : '') + t.title;
+      var seconds = 0;
+      var parsed = String(t.duration || '').match(/^(\d+):(\d{2})$/);
+      if (parsed) seconds = parseInt(parsed[1], 10) * 60 + parseInt(parsed[2], 10);
+      lines.push('#EXTINF:' + (seconds > 0 ? seconds : -1) + ',' + name);
+      lines.push(name + '.mp3');
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  global.AudenicCore = {
+    clamp: clamp,
+    pad2: pad2,
+    lrcStamp: lrcStamp,
+    formatClock: formatClock,
+    stripFences: stripFences,
+    extractJSON: extractJSON,
+    parseLRC: parseLRC,
+    isCueLine: isCueLine,
+    normaliseCurator: normaliseCurator,
+    normaliseEQ: normaliseEQ,
+    bandText: bandText,
+    m3uFrom: m3uFrom,
+    BAND_KEYS: BAND_KEYS
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+
+<script>
+/* ============================================================================
+   UI layer
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var Core = window.AudenicCore;
+  var doc = document;
+
+  var K = {
+    gemini: 'audenic.key.gemini',
+    groq: 'audenic.key.groq',
+    provider: 'audenic.provider',
+    tab: 'audenic.tab',
+    song: 'audenic.lastSong',
+    curator: 'audenic.lastTheme',
+    eq: 'audenic.eqCurve'
+  };
+
+  var BANDS = [
+    { id: '60', label: '60 Hz' },
+    { id: '230', label: '230 Hz' },
+    { id: '910', label: '910 Hz' },
+    { id: '36k', label: '3.6 kHz' },
+    { id: '14k', label: '14 kHz' }
+  ];
+
+  var PRESETS = {
+    worship:  { bands: [4, 2, 0, 3, 5] },
+    bass:     { bands: [8, 5, -1, 1, 2] },
+    vocal:    { bands: [-2, 1, 4, 5, 3] },
+    acoustic: { bands: [2, 1, 2, 4, 6] },
+    flat:     { bands: [0, 0, 0, 0, 0] }
+  };
+
+  var STATE = {
+    tab: 'lyrics',
+    provider: 'auto',
+    eq: [0, 0, 0, 0, 0],
+    companion: { checked: false, ok: false, health: null, checkedAt: 0 },
+    busy: {},
+    lyrics: { text: '', parsed: null, meta: null, sample: false },
+    curator: null,
+    eqResult: null
+  };
+
+  /* ---------------------------------------------------------------- utils */
+
+  function $(id) { return doc.getElementById(id); }
+
+  function el(tag, cls, text) {
+    var node = doc.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function each(list, fn) { Array.prototype.forEach.call(list || [], fn); }
+
+  function on(node, type, fn, opts) {
+    if (node) node.addEventListener(type, fn, opts || false);
+  }
+
+  function setClass(node, cls, enable) {
+    if (!node) return;
+    if (enable) node.classList.add(cls);
+    else node.classList.remove(cls);
+  }
+
+  function haptic(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms || 8); } catch (e) {}
+  }
+
+  function announce(message) {
+    var live = $('live');
+    if (live) live.textContent = message || '';
+  }
+
+  function toast(message, kind) {
+    var root = $('toasts');
+    if (!root) return;
+    var node = el('div', 'toast', message);
+    node.setAttribute('data-kind', kind || 'info');
+    root.appendChild(node);
+    window.setTimeout(function () {
+      node.classList.add('is-leaving');
+      window.setTimeout(function () {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      }, 240);
+    }, kind === 'error' ? 5200 : 3000);
+  }
+
+  var Store = {
+    get: function (key) {
+      try { return window.localStorage.getItem(key); } catch (e) { return null; }
+    },
+    set: function (key, value) {
+      try {
+        if (value == null || value === '') window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, value);
+      } catch (e) {}
+    }
+  };
+
+  function copyText(text, okMessage) {
+    if (!text) { toast('Nothing to copy yet.', 'error'); return; }
+
+    function legacy() {
+      var area = doc.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.top = '-1000px';
+      area.style.opacity = '0';
+      doc.body.appendChild(area);
+      var ok = false;
+      try {
+        area.select();
+        area.setSelectionRange(0, area.value.length);
+        ok = doc.execCommand('copy');
+      } catch (e) { ok = false; }
+      doc.body.removeChild(area);
+      return ok;
+    }
+
+    function done(ok) {
+      if (ok) { haptic(10); toast(okMessage || 'Copied to clipboard', 'success'); }
+      else toast('Copy is blocked in this view. Select the text and copy it manually.', 'error');
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacy()); });
+    } else {
+      done(legacy());
+    }
+  }
+
+  function downloadFile(filename, text, mime) {
+    try {
+      var blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var link = doc.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      doc.body.appendChild(link);
+      link.click();
+      doc.body.removeChild(link);
+      window.setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      toast('Saved ' + filename, 'success');
+    } catch (e) {
+      toast('This view cannot save files. Use Copy instead.', 'error');
+    }
+  }
+
+  function fileSafe(name, fallback) {
+    var value = String(name || '').replace(/[\\/:*?"<>|\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!value) value = fallback || 'audenic';
+    return value.slice(0, 80);
+  }
+
+  function setBusy(button, busy, busyLabel) {
+    if (!button) return;
+    var label = button.querySelector('.btn-label');
+    if (busy) {
+      if (label) button.dataset.idleLabel = label.textContent;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      if (label) label.textContent = busyLabel || 'Working…';
+      if (!button.querySelector('.spinner')) {
+        var spinner = el('span', 'spinner');
+        spinner.setAttribute('aria-hidden', 'true');
+        button.insertBefore(spinner, button.firstChild);
+      }
+    } else {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      var spin = button.querySelector('.spinner');
+      if (spin && spin.parentNode) spin.parentNode.removeChild(spin);
+      if (label && button.dataset.idleLabel) label.textContent = button.dataset.idleLabel;
+    }
+  }
+
+  /** Copy/Save only make sense when there is something real in the panel. */
+  function setActionsEnabled(prefix, enabled) {
+    [prefix + '-copy', prefix + '-save'].forEach(function (id) {
+      var button = $(id);
+      if (button) button.disabled = !enabled;
+    });
+  }
+
+  function scrollToNode(node, smooth) {
+    if (!node || !node.scrollIntoView) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var behavior = (smooth && !reduce) ? 'smooth' : 'auto';
+    try {
+      node.scrollIntoView({ block: 'nearest', behavior: behavior });
+    } catch (e) {
+      // Older WebViews only accept a boolean.
+      try { node.scrollIntoView(false); } catch (ignored) {}
+    }
+  }
+
+  /* ------------------------------------------------------------------ AI */
+
+  function AIError(title, hint, meta) {
+    this.name = 'AIError';
+    this.title = title;
+    this.hint = hint || '';
+    this.meta = meta || {};
+    this.message = title + (hint ? ' ' + hint : '');
+  }
+  AIError.prototype = Object.create(Error.prototype);
+  AIError.prototype.constructor = AIError;
+
+  var ENGINE = {
+    models: {
+      gemini: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      groq: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b']
+    }
+  };
+
+  function prettyModel(provider, model) {
+    var name = String(model || '');
+    if (provider === 'gemini') {
+      if (name.indexOf('3.8') !== -1) return 'Gemini 3.8 Flash';
+      if (name.indexOf('3.6') !== -1) return 'Gemini 3.6 Flash';
+      return name ? 'Gemini ' + name.replace('gemini-', '') : 'Gemini';
+    }
+    if (provider === 'groq') {
+      if (name.indexOf('gpt-oss-120b') !== -1) return 'Groq · GPT-OSS 120B';
+      if (name.indexOf('gpt-oss-20b') !== -1) return 'Groq · GPT-OSS 20B';
+      if (name.indexOf('qwen') !== -1) return 'Groq · Qwen 3.8 27B';
+      return name ? 'Groq · ' + name : 'Groq';
+    }
+    return name || 'Companion';
+  }
+
+  function companionBase() {
+    var protocol = window.location.protocol;
+    if (protocol === 'http:' || protocol === 'https:') return '';
+    return 'http://127.0.0.1:8080';
+  }
+
+  function keyFor(provider) {
+    return Store.get(provider === 'gemini' ? K.gemini : K.groq) || '';
+  }
+
+  function hasLocalKey() {
+    return !!(keyFor('gemini') || keyFor('groq'));
+  }
+
+  function translateNetwork(error) {
+    if (error && error.timeout) {
+      return new AIError('The engine took too long to answer.', 'Long lyric jobs can take 30 seconds. Check the connection and try once more.');
+    }
+    if (error && error.name === 'AbortError') {
+      return new AIError('The request was cancelled.', 'Try again when the connection is stable.');
+    }
+    if (error && error.status) {
+      return mapStatus('AI', '', error);
+    }
+    return new AIError('Could not reach the AI engine.', 'Check the connection, or start the companion on port 8080 and press Recheck in Engine.');
+  }
+
+  function mapStatus(providerName, model, error) {
+    var status = error && error.status;
+    var detail = error && error.message ? String(error.message).slice(0, 180) : '';
+    if (status === 401 || status === 403) {
+      return new AIError(providerName + ' rejected the API key.', 'Open Engine, paste a fresh key, then run the connection test.', { status: status, detail: detail });
+    }
+    if (status === 429) {
+      return new AIError(providerName + ' is rate-limiting this key.', 'Free tiers have per-minute limits. Wait a minute, or switch engines in Engine.', { status: status, detail: detail });
+    }
+    if (status === 404) {
+      return new AIError('That model is not available on ' + providerName + '.', 'Set the engine to Automatic so the Studio can try another model.', { status: status, detail: detail });
+    }
+    if (status === 400) {
+      return new AIError(providerName + ' could not read the request.', detail || 'The prompt may be too long. Try a shorter description.', { status: status, detail: detail });
+    }
+    if (status >= 500) {
+      return new AIError(providerName + ' is having an outage.', 'Try again in a minute — nothing on your side is broken.', { status: status, detail: detail });
+    }
+    return new AIError('The AI request failed' + (status ? ' (' + status + ')' : '') + '.', detail || 'Try again in a moment.', { status: status, detail: detail });
+  }
+
+  function requestJSON(url, options, timeoutMs) {
+    var opts = options || {};
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = null;
+    if (controller) {
+      opts.signal = controller.signal;
+      timer = window.setTimeout(function () { controller.abort(); }, timeoutMs || 60000);
+    }
+    return window.fetch(url, opts).then(function (response) {
+      return response.text().then(function (body) {
+        var data = null;
+        if (body) {
+          try { data = JSON.parse(body); } catch (e) { data = null; }
+        }
+        if (!response.ok) {
+          var message = '';
+          if (data) {
+            if (typeof data.error === 'string') message = data.error;
+            else if (data.error && data.error.message) message = data.error.message;
+            else if (data.detail) message = data.detail;
+            else if (data.message) message = data.message;
+          }
+          var error = new Error(message || ('HTTP ' + response.status));
+          error.status = response.status;
+          error.data = data;
+          throw error;
+        }
+        return data;
+      });
+    }).then(function (value) {
+      if (timer) window.clearTimeout(timer);
+      return value;
+    }, function (error) {
+      if (timer) window.clearTimeout(timer);
+      if (error && error.name === 'AbortError') { error.timeout = true; }
+      throw error;
+    });
+  }
+
+  async function callGemini(key, options) {
+    var started = (window.performance && performance.now) ? performance.now() : Date.now();
+    var models = ENGINE.models.gemini.slice();
+    var lastError = null;
+
+    for (var i = 0; i < models.length; i++) {
+      var model = models[i];
+      var payload = {
+        contents: [{ role: 'user', parts: [{ text: options.prompt }] }],
+        generationConfig: {
+          temperature: 0.55,
+          maxOutputTokens: options.maxTokens || 2800
+        }
+      };
+      if (options.json) payload.generationConfig.responseMimeType = 'application/json';
+      if (options.system) payload.systemInstruction = { parts: [{ text: options.system }] };
+
+      try {
+        var data = await requestJSON(
+          'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) +
+            ':generateContent?key=' + encodeURIComponent(key),
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+          options.timeoutMs || 80000
+        );
+        var candidate = (data && data.candidates && data.candidates[0]) || null;
+        var parts = (candidate && candidate.content && candidate.content.parts) || [];
+        var text = parts.map(function (p) { return p.text || ''; }).join('').trim();
+        if (!text) {
+          var blocked = (data && data.promptFeedback && data.promptFeedback.blockReason) || (candidate && candidate.finishReason);
+          throw new AIError(
+            'Gemini returned an empty answer.',
+            blocked === 'SAFETY' ? 'The request was filtered. Rephrase the song or theme.' : 'Try again, or simplify the prompt.'
+          );
+        }
+        return {
+          text: text,
+          provider: 'gemini',
+          model: model,
+          ms: Math.round(((window.performance && performance.now) ? performance.now() : Date.now()) - started),
+          via: 'device'
+        };
+      } catch (error) {
+        if (error instanceof AIError) throw error;
+        lastError = mapStatus('Gemini', model, error);
+        var retry = error.status === 404 || error.status === 429;
+        if (!retry) break;
+      }
+    }
+    throw lastError || new AIError('Gemini did not answer.', 'Try again in a moment.');
+  }
+
+  async function callGroq(key, options) {
+    var started = (window.performance && performance.now) ? performance.now() : Date.now();
+    var models = ENGINE.models.groq.slice();
+    var lastError = null;
+    var messages = [];
+    if (options.system) messages.push({ role: 'system', content: options.system });
+    messages.push({ role: 'user', content: options.prompt });
+
+    for (var i = 0; i < models.length; i++) {
+      var model = models[i];
+      var payload = {
+        model: model,
+        messages: messages,
+        temperature: 0.55,
+        max_tokens: options.maxTokens || 2800
+      };
+      if (options.json) payload.response_format = { type: 'json_object' };
+
+      try {
+        var data = await requestJSON(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+            body: JSON.stringify(payload)
+          },
+          options.timeoutMs || 80000
+        );
+        var choice = data && data.choices && data.choices[0];
+        var text = (choice && choice.message && choice.message.content) ? String(choice.message.content).trim() : '';
+        if (!text) throw new AIError('Groq returned an empty answer.', 'Try again in a moment.');
+        return {
+          text: text,
+          provider: 'groq',
+          model: model,
+          ms: Math.round(((window.performance && performance.now) ? performance.now() : Date.now()) - started),
+          via: 'device'
+        };
+      } catch (error) {
+        if (error instanceof AIError) throw error;
+        lastError = mapStatus('Groq', model, error);
+        var retry = error.status === 404 || error.status === 429;
+        if (!retry) break;
+      }
+    }
+    throw lastError || new AIError('Groq did not answer.', 'Try again in a moment.');
+  }
+
+  function callProvider(provider, key, options) {
+    return provider === 'gemini' ? callGemini(key, options) : callGroq(key, options);
+  }
+
+  async function directGenerate(options) {
+    var preferred = STATE.provider;
+    var order = preferred === 'auto' ? ['gemini', 'groq'] : [preferred];
+    var lastError = null;
+
+    for (var i = 0; i < order.length; i++) {
+      var provider = order[i];
+      var key = keyFor(provider);
+      if (!key) continue;
+      try {
+        return await callProvider(provider, key, options);
+      } catch (error) {
+        lastError = (error instanceof AIError) ? error : translateNetwork(error);
+      }
+    }
+
+    if (lastError) throw lastError;
+    throw new AIError(
+      preferred === 'gemini' ? 'No Gemini key saved.' :
+      preferred === 'groq' ? 'No Groq key saved.' : 'No API key saved yet.',
+      'Open Engine and paste a key, or start the companion server and press Recheck.'
+    );
+  }
+
+  async function probeCompanion(timeoutMs) {
+    STATE.companion.checked = true;
+    STATE.companion.checkedAt = Date.now();
+    try {
+      var data = await requestJSON(companionBase() + '/api/health', { method: 'GET' }, timeoutMs || 2500);
+      if (!data || data.ok === false) throw new Error('unhealthy');
+      STATE.companion.ok = true;
+      STATE.companion.health = data;
+      return true;
+    } catch (error) {
+      STATE.companion.ok = false;
+      STATE.companion.health = null;
+      return false;
+    }
+  }
+
+  async function generate(options) {
+    if (!STATE.companion.checked) await probeCompanion();
+
+    if (STATE.companion.ok) {
+      try {
+        var data = await requestJSON(companionBase() + '/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: options.prompt,
+            system: options.system,
+            json: !!options.json,
+            provider: STATE.provider === 'auto' ? '' : STATE.provider
+          })
+        }, options.timeoutMs || 95000);
+
+        if (!data || !data.text) {
+          throw new AIError('The companion returned an empty answer.', 'Check its terminal for the provider error, then try again.');
+        }
+        return {
+          text: String(data.text),
+          provider: data.provider || 'companion',
+          model: data.model || '',
+          ms: Number(data.latencyMs) || 0,
+          via: 'companion'
+        };
+      } catch (error) {
+        if (error instanceof AIError) throw error;
+        if (hasLocalKey()) return directGenerate(options);
+
+        var detail = error && error.message ? String(error.message) : '';
+        if (detail.length > 200) detail = detail.slice(0, 200) + '…';
+        if (detail) detail = detail.charAt(0).toUpperCase() + detail.slice(1) + '. ';
+        throw new AIError(
+          'The companion could not reach an AI engine.',
+          detail + 'Give it a key (environment or ai_vault_local.json), or paste a device key in Engine.'
+        );
+      }
+    }
+
+    return directGenerate(options);
+  }
+
+  /* ------------------------------------------------------------- karaoke */
+
+  var Karaoke = (function () {
+    var state = {
+      lines: [], total: 0, t: 0, playing: false, raf: 0, last: 0,
+      active: -2, lineH: 44, viewH: 132, drag: false, nodes: []
+    };
+    var track, viewport, fill, timeLabel, playBtn, progress;
+
+    function cache() {
+      track = $('kar-track');
+      viewport = $('kar-viewport');
+      fill = $('kar-fill');
+      timeLabel = $('kar-time');
+      playBtn = $('kar-play');
+      progress = $('kar-progress');
+    }
+
+    function measure() {
+      if (!viewport) return;
+      state.viewH = viewport.clientHeight || 132;
+      var first = track ? track.querySelector('.k-line') : null;
+      state.lineH = (first && first.offsetHeight) || 44;
+    }
+
+    function render() {
+      if (!track) return;
+      var idx = -1;
+      for (var i = 0; i < state.lines.length; i++) {
+        if (state.lines[i].time <= state.t + 0.0001) idx = i;
+        else break;
+      }
+      if (idx !== state.active) {
+        each(state.nodes, function (node, i) {
+          setClass(node, 'is-active', i === idx);
+          setClass(node, 'is-near', Math.abs(i - idx) === 1);
+          setClass(node, 'is-far', Math.abs(i - idx) >= 2);
+        });
+        state.active = idx;
+      }
+      // paddingTop centres line 0, so each line is offset by whole line heights
+      var offset = idx >= 0 ? -(idx * state.lineH) : 0;
+      track.style.transform = 'translate3d(0,' + Math.round(offset) + 'px,0)';
+
+      var pct = state.total ? Math.min(100, (state.t / state.total) * 100) : 0;
+      if (fill) fill.style.width = pct + '%';
+      if (timeLabel) timeLabel.textContent = Core.formatClock(state.t) + ' / ' + Core.formatClock(state.total);
+      if (progress) {
+        progress.setAttribute('aria-valuenow', String(Math.round(pct)));
+        progress.setAttribute('aria-valuetext', Core.formatClock(state.t) + ' of ' + Core.formatClock(state.total));
+      }
+    }
+
+    function icon(playing) {
+      return playing
+        ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>'
+        : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+    }
+
+    function tick(now) {
+      if (!state.playing) return;
+      var delta = (now - state.last) / 1000;
+      state.last = now;
+      state.t = Math.min(state.total, state.t + delta);
+      render();
+      if (state.t >= state.total - 0.01) { state.t = state.total; render(); pause(); return; }
+      state.raf = window.requestAnimationFrame(tick);
+    }
+
+    function play() {
+      if (!state.lines.length) return;
+      if (state.raf) window.cancelAnimationFrame(state.raf);
+      if (state.t >= state.total - 0.05) state.t = 0;
+      state.playing = true;
+      state.last = (window.performance && performance.now) ? performance.now() : Date.now();
+      state.raf = window.requestAnimationFrame(tick);
+      if (playBtn) {
+        playBtn.innerHTML = icon(true);
+        playBtn.setAttribute('aria-label', 'Pause lyric preview');
+      }
+    }
+
+    function pause() {
+      state.playing = false;
+      if (state.raf) { window.cancelAnimationFrame(state.raf); state.raf = 0; }
+      if (playBtn) {
+        playBtn.innerHTML = icon(false);
+        playBtn.setAttribute('aria-label', 'Play lyric preview');
+      }
+    }
+
+    function seek(seconds) {
+      state.t = Core.clamp(seconds, 0, state.total);
+      render();
+    }
+
+    function seekFromPointer(event) {
+      if (!progress) return;
+      var rect = progress.getBoundingClientRect();
+      var x = event.clientX - rect.left;
+      var rtl = window.getComputedStyle(doc.documentElement).direction === 'rtl';
+      if (rtl) x = rect.width - x;
+      seek(Core.clamp(x / rect.width, 0, 1) * state.total);
+    }
+
+    function load(lines) {
+      cache();
+      pause();
+      state.lines = (lines || []).slice();
+      state.t = 0;
+      state.active = -2;
+      state.total = state.lines.length ? state.lines[state.lines.length - 1].time + 5 : 0;
+      if (!track) return;
+
+      track.innerHTML = '';
+      state.nodes = state.lines.map(function (line) {
+        var node = el('button', 'k-line');
+        node.type = 'button';
+        node.setAttribute('role', 'listitem');
+        node.tabIndex = -1;
+        node.textContent = line.text || '·';
+        if (Core.isCueLine(line.text)) node.classList.add('is-cue');
+        node.title = 'Jump to ' + Core.formatClock(line.time);
+        on(node, 'click', function () { seek(line.time); haptic(6); });
+        track.appendChild(node);
+        return node;
+      });
+
+      measure();
+      var pad = Math.max(0, Math.round(state.viewH / 2 - state.lineH / 2));
+      track.style.paddingTop = pad + 'px';
+      track.style.paddingBottom = pad + 'px';
+      track.style.transform = 'translate3d(0,0,0)';
+      render();
+    }
+
+    function bind() {
+      cache();
+      if (!playBtn) return;
+
+      on(playBtn, 'click', function () {
+        haptic(8);
+        if (state.playing) pause(); else play();
+      });
+
+      if (progress) {
+        on(progress, 'pointerdown', function (event) {
+          state.drag = true;
+          try { progress.setPointerCapture(event.pointerId); } catch (e) {}
+          seekFromPointer(event);
+        });
+        on(progress, 'pointermove', function (event) { if (state.drag) seekFromPointer(event); });
+        on(progress, 'pointerup', function () { state.drag = false; });
+        on(progress, 'pointercancel', function () { state.drag = false; });
+        on(progress, 'keydown', function (event) {
+          if (event.key === 'ArrowRight' || event.key === 'ArrowUp') { event.preventDefault(); seek(state.t + 5); }
+          else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') { event.preventDefault(); seek(state.t - 5); }
+          else if (event.key === 'Home') { event.preventDefault(); seek(0); }
+          else if (event.key === 'End') { event.preventDefault(); seek(state.total); }
+          else if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); if (state.playing) pause(); else play(); }
+        });
+      }
+
+      on(window, 'resize', function () {
+        measure();
+        if (track) {
+          var pad = Math.max(0, Math.round(state.viewH / 2 - state.lineH / 2));
+          track.style.paddingTop = pad + 'px';
+          track.style.paddingBottom = pad + 'px';
+        }
+        render();
+      });
+    }
+
+    return {
+      load: load,
+      bind: bind,
+      pause: pause,
+      reset: function () {
+        pause();
+        state.lines = [];
+        state.t = 0;
+        state.total = 0;
+        if (track) track.innerHTML = '';
+      }
+    };
+  })();
+
+  /* ------------------------------------------------------------- notices */
+
+  function clearNode(node) { if (node) node.innerHTML = ''; }
+
+  function showSkeleton(target, label) {
+    if (!target) return;
+    clearNode(target);
+    if (label) announce(label);
+    var box = el('div', 'skeleton');
+    box.setAttribute('aria-hidden', 'true');
+    box.appendChild(el('span'));
+    box.appendChild(el('span'));
+    box.appendChild(el('span'));
+    target.appendChild(box);
+  }
+
+  function showNotice(target, options) {
+    if (!target) return;
+    clearNode(target);
+    if (!options) return;
+
+    var box = el('div', 'notice');
+    box.setAttribute('data-kind', options.kind || 'info');
+    box.setAttribute('role', options.kind === 'error' ? 'alert' : 'status');
+    if (options.title) box.appendChild(el('strong', null, options.title));
+    if (options.text) box.appendChild(el('p', null, options.text));
+
+    if (options.actions && options.actions.length) {
+      var row = el('div', 'notice-actions');
+      options.actions.forEach(function (action) {
+        var button = el('button', 'btn-ghost', action.label);
+        button.type = 'button';
+        on(button, 'click', action.onClick);
+        row.appendChild(button);
+      });
+      box.appendChild(row);
+    }
+    target.appendChild(box);
+  }
+
+  function errorNotice(target, error, retry) {
+    var title = (error && error.title) || 'Something went wrong.';
+    var hint = (error && error.hint) || '';
+    var actions = [];
+    if (retry) actions.push({ label: 'Try again', onClick: retry });
+    actions.push({ label: 'Open Engine', onClick: function () { activateTab('vault', { reveal: true }); } });
+    showNotice(target, { kind: 'error', title: title, text: hint, actions: actions });
+    announce(title + ' ' + hint);
+  }
+
+  function setBadge(node, result) {
+    if (!node) return;
+    if (result && result.sample) {
+      node.textContent = 'Sample';
+      node.setAttribute('data-kind', 'sample');
+      return;
+    }
+    node.textContent = prettyModel(result && result.provider, result && result.model);
+    node.setAttribute('data-kind', result && result.via === 'device' ? 'device' : '');
+  }
+
+  function metaText(result, extra) {
+    if (result && result.sample) return 'Sample output — no request was sent';
+    var bits = [];
+    bits.push(prettyModel(result.provider, result.model));
+    if (result.ms) bits.push((result.ms / 1000).toFixed(1) + ' s');
+    bits.push(result.via === 'companion' ? 'via companion' : 'device key');
+    if (extra) bits.push(extra);
+    return bits.filter(Boolean).join(' · ');
+  }
+
+  /* ---------------------------------------------------------------- tabs */
+
+  var TAB_NAMES = ['lyrics', 'curator', 'eq', 'vault'];
+
+  function activateTab(name, options) {
+    options = options || {};
+    if (TAB_NAMES.indexOf(name) === -1) name = 'lyrics';
+
+    var buttons = doc.querySelectorAll('.tab');
+    each(buttons, function (button) {
+      var selected = button.getAttribute('data-tab') === name;
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+      button.tabIndex = selected ? 0 : -1;
+    });
+
+    each(doc.querySelectorAll('.panel'), function (panel) {
+      panel.hidden = panel.id !== 'pane-' + name;
+    });
+
+    STATE.tab = name;
+    Store.set(K.tab, name);
+
+    var active = $('tab-' + name);
+    if (active && options.reveal) scrollToNode(active, true);
+
+    if (options.focusPanel) {
+      var pane = $('pane-' + name);
+      if (pane) {
+        try { pane.focus({ preventScroll: true }); } catch (e) { pane.focus(); }
+      }
+    }
+  }
+
+  function bindTabs() {
+    var buttons = doc.querySelectorAll('.tab');
+    each(buttons, function (button) {
+      on(button, 'click', function () {
+        haptic(6);
+        activateTab(button.getAttribute('data-tab'), { reveal: true });
+      });
+      on(button, 'keydown', function (event) {
+        var index = TAB_NAMES.indexOf(button.getAttribute('data-tab'));
+        var next = -1;
+        if (event.key === 'ArrowRight') next = (index + 1) % TAB_NAMES.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + TAB_NAMES.length) % TAB_NAMES.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = TAB_NAMES.length - 1;
+        if (next === -1) return;
+        event.preventDefault();
+        var target = $('tab-' + TAB_NAMES[next]);
+        activateTab(TAB_NAMES[next], { reveal: true });
+        if (target) target.focus();
+      });
+    });
+  }
+
+  /* -------------------------------------------------------------- lyrics */
+
+  function splitSong(input) {
+    var text = String(input || '').trim();
+    var match = text.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+    if (match) return { artist: match[1].trim(), title: match[2].trim(), raw: text };
+    return { artist: '', title: text, raw: text };
+  }
+
+  var LYRICS_SYSTEM = [
+    'You are Audenic\'s LRC timing engineer.',
+    'Reply with valid LRC text only — no markdown, no code fences, no commentary.',
+    'Start with [ti:], [ar:], [al:Audenic AI Studio] and [by:Audenic] header tags.',
+    'Every lyric line must begin with a [mm:ss.xx] timestamp.',
+    'Keep a realistic cadence: instrumental intro 8–18 s, verse lines 3–5 s apart, chorus about 4 s per line.',
+    'If you do not know the exact words, emit cue lines such as "[00:12.00] (Verse 1)" instead of inventing lyrics.'
+  ].join(' ');
+
+  function renderRawLRC(parsed) {
+    var box = $('lyrics-raw');
+    if (!box) return;
+    clearNode(box);
+
+    Object.keys(parsed.meta).forEach(function (key) {
+      if (key === 'offset') return;
+      box.appendChild(el('div', 'lrc-meta', '[' + key + ': ' + parsed.meta[key] + ']'));
+    });
+
+    parsed.lines.forEach(function (line) {
+      var row = el('div', 'lrc-line');
+      row.appendChild(el('span', 'lrc-ts', line.time >= 0 ? '[' + Core.lrcStamp(line.time) + ']' : ''));
+      row.appendChild(el('span', 'lrc-text', line.text));
+      box.appendChild(row);
+    });
+
+    var count = $('lyrics-count');
+    if (count) count.textContent = parsed.lines.length + ' lines';
+  }
+
+  function renderLyrics(text, result, fallbackTitle) {
+    var parsed = Core.parseLRC(text);
+    if (!parsed.lines.length) {
+      throw new AIError('The answer had no timestamped lines.', 'Try again, or paste lyrics you already have into the song field.');
+    }
+
+    STATE.lyrics = { text: text, parsed: parsed, meta: result, sample: !!result.sample };
+
+    $('lyrics-result').hidden = false;
+    $('lyrics-body').hidden = false;
+    setActionsEnabled('lyrics', true);
+    showNotice($('lyrics-notice'), null);
+    setBadge($('lyrics-badge'), result);
+    $('lyrics-title').textContent = parsed.meta.ti || fallbackTitle || 'Synchronized lyrics';
+    $('lyrics-meta').textContent = metaText(result, parsed.lines.length + ' lines');
+
+    renderRawLRC(parsed);
+    Karaoke.load(parsed.lines);
+    scrollToNode($('lyrics-result'), true);
+    announce('Lyrics generated. ' + parsed.lines.length + ' timed lines ready to preview.');
+  }
+
+  async function runLyrics() {
+    var input = $('song-input');
+    var song = (input.value || '').trim();
+    if (!song) {
+      toast('Add a song and artist first.', 'error');
+      input.focus();
+      return;
+    }
+    if (STATE.busy.lyrics) return;
+    STATE.busy.lyrics = true;
+
+    var button = $('btn-lyrics');
+    var resultBox = $('lyrics-result');
+    var parts = splitSong(song);
+
+    setBusy(button, true, 'Timing the lines…');
+    setActionsEnabled('lyrics', false);
+    STATE.lyrics = { text: '', parsed: null, meta: null, sample: false };
+    resultBox.hidden = false;
+    $('lyrics-body').hidden = true;
+    $('lyrics-title').textContent = parts.title || song;
+    $('lyrics-badge').textContent = 'Working';
+    $('lyrics-badge').setAttribute('data-kind', '');
+    $('lyrics-meta').textContent = 'Synchronizing timecodes…';
+    showSkeleton($('lyrics-notice'), 'Synchronizing lyrics for ' + song);
+    Karaoke.pause();
+
+    var prompt = 'Song: ' + parts.title + '\n' +
+      'Artist: ' + (parts.artist || 'unknown') + '\n\n' +
+      'Produce a complete, precision-timed LRC file for this recording. ' +
+      'Cover the whole song, not an excerpt. Header tags first, then timed lines.';
+
+    try {
+      var response = await generate({ prompt: prompt, system: LYRICS_SYSTEM, timeoutMs: 95000 });
+      var text = Core.stripFences(response.text);
+      var stamps = (text.match(/\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]/g) || []).length;
+      if (stamps < 3) {
+        throw new AIError(
+          'The engine answered without usable timestamps.',
+          'Try once more, or name the artist and title exactly as they appear on the album.'
+        );
+      }
+      renderLyrics(text, response, parts.title);
+    } catch (error) {
+      var mapped = (error instanceof AIError) ? error : translateNetwork(error);
+      $('lyrics-body').hidden = true;
+      $('lyrics-badge').textContent = 'Not generated';
+      $('lyrics-badge').setAttribute('data-kind', 'muted');
+      $('lyrics-meta').textContent = '';
+      setActionsEnabled('lyrics', false);
+      errorNotice($('lyrics-notice'), mapped, runLyrics);
+    } finally {
+      STATE.busy.lyrics = false;
+      setBusy(button, false);
+    }
+  }
+
+  /* ------------------------------------------------------------- curator */
+
+  var CURATOR_SYSTEM = [
+    'You are Audenic\'s musicologist and setlist builder.',
+    'Return ONLY a JSON object — no markdown, no code fences, no commentary.',
+    'Shape: {"title":"Setlist name","description":"One sentence on the arc of the set",',
+    '"tracks":[{"title":"","artist":"","genre":"","bpm":102,"durationSec":215,"why":"one sentence"}]}',
+    'Give ten ordered tracks with no duplicates. Choose real, findable recordings that fit the brief.',
+    'Never invent an artist or a song that does not exist.'
+  ].join(' ');
+
+  function renderCurator(curator, response, rawText) {
+    STATE.curator = { data: curator, raw: rawText, meta: response };
+
+    $('curator-result').hidden = false;
+    setActionsEnabled('curator', true);
+    showNotice($('curator-notice'), null);
+    setBadge($('curator-badge'), response);
+    $('curator-title').textContent = curator.title || 'Setlist';
+    $('curator-meta').textContent = metaText(response, curator.tracks.length ? curator.tracks.length + ' tracks' : '');
+
+    var description = $('curator-desc');
+    description.textContent = curator.description || '';
+    description.hidden = !curator.description;
+
+    var list = $('curator-list');
+    clearNode(list);
+    curator.tracks.forEach(function (track, index) {
+      var item = el('li');
+      var row = el('div', 'track');
+      row.appendChild(el('span', 'track-idx', String(index + 1)));
+
+      var main = el('div', 'track-main');
+      main.appendChild(el('div', 'track-title', track.title));
+
+      var sub = [track.artist, track.genre].filter(Boolean).join(' · ');
+      if (sub) main.appendChild(el('div', 'track-sub', sub));
+      if (track.why) main.appendChild(el('div', 'track-why', track.why));
+
+      var tags = el('div', 'track-tags');
+      if (track.bpm) {
+        var bpm = String(track.bpm);
+        tags.appendChild(el('span', 'tag', /bpm/i.test(bpm) ? bpm : bpm + ' BPM'));
+      }
+      if (track.duration) tags.appendChild(el('span', 'tag', track.duration));
+      if (tags.childNodes.length) main.appendChild(tags);
+
+      row.appendChild(main);
+      item.appendChild(row);
+      list.appendChild(item);
+    });
+    list.hidden = !curator.tracks.length;
+
+    var rawWrap = $('curator-raw-wrap');
+    var rawBox = $('curator-raw');
+    if (rawBox) rawBox.textContent = rawText || '';
+    if (rawWrap) rawWrap.hidden = !rawText;
+
+    scrollToNode($('curator-result'), true);
+    announce('Setlist ready. ' + curator.tracks.length + ' tracks.');
+  }
+
+  async function runCurator() {
+    var input = $('curator-input');
+    var theme = (input.value || '').trim();
+    if (!theme) {
+      toast('Describe the mood or occasion first.', 'error');
+      input.focus();
+      return;
+    }
+    if (STATE.busy.curator) return;
+    STATE.busy.curator = true;
+
+    var button = $('btn-curator');
+    setBusy(button, true, 'Building the set…');
+    setActionsEnabled('curator', false);
+    STATE.curator = null;
+    $('curator-result').hidden = false;
+    $('curator-body').hidden = true;
+    $('curator-badge').textContent = 'Working';
+    $('curator-badge').setAttribute('data-kind', '');
+    $('curator-meta').textContent = 'Choosing tracks…';
+    $('curator-title').textContent = 'Setlist';
+    showSkeleton($('curator-notice'), 'Curating a set for ' + theme);
+
+    try {
+      var response = await generate({
+        prompt: 'Curate a ten-track set for: ' + theme,
+        system: CURATOR_SYSTEM,
+        json: true,
+        timeoutMs: 95000
+      });
+
+      var parsed = Core.extractJSON(response.text);
+      var cleaned = response.text ? Core.stripFences(response.text) : '';
+      var curator = Core.normaliseCurator(parsed, cleaned);
+
+      if (!curator.tracks.length && !curator.description) {
+        throw new AIError('The engine returned no usable setlist.', 'Try a more specific theme — a genre, a tempo or an occasion.');
+      }
+
+      $('curator-body').hidden = false;
+      renderCurator(curator, response, cleaned);
+    } catch (error) {
+      var mapped = (error instanceof AIError) ? error : translateNetwork(error);
+      $('curator-body').hidden = true;
+      $('curator-badge').textContent = 'Not generated';
+      $('curator-badge').setAttribute('data-kind', 'muted');
+      $('curator-meta').textContent = '';
+      setActionsEnabled('curator', false);
+      errorNotice($('curator-notice'), mapped, runCurator);
+    } finally {
+      STATE.busy.curator = false;
+      setBusy(button, false);
+    }
+  }
+
+  function curatorPlainText() {
+    if (!STATE.curator) return '';
+    var data = STATE.curator.data;
+    var lines = [];
+    if (data.title) lines.push(data.title);
+    if (data.description) lines.push(data.description);
+    if (lines.length) lines.push('');
+    data.tracks.forEach(function (track, index) {
+      var head = (index + 1) + '. ' + (track.artist ? track.artist + ' - ' : '') + track.title;
+      if (track.bpm) head += ' (' + track.bpm + ' BPM)';
+      lines.push(head);
+      if (track.why) lines.push('   ' + track.why);
+    });
+    return lines.join('\n');
+  }
+
+  /* ------------------------------------------------------------------ EQ */
+
+  var EQ_SYSTEM = [
+    'You are an acoustic engineer tuning Audenic\'s five-band equalizer.',
+    'Bands are 60 Hz, 230 Hz, 910 Hz, 3.6 kHz and 14 kHz.',
+    'Return ONLY a JSON object — no markdown, no code fences, no commentary.',
+    'Shape: {"bands":{"60":4,"230":2,"910":0,"36k":3,"14k":5},',
+    '"bassBoostPct":40,"virtualizerPct":20,"reverbPreset":"MediumRoom","reasoning":"two sentences"}',
+    'Every gain is an integer between -10 and +10. Keep moves musical: never all bands at the extremes.'
+  ].join(' ');
+
+  function bandsObject() {
+    var map = {};
+    BANDS.forEach(function (band, index) { map[band.id] = STATE.eq[index]; });
+    return map;
+  }
+
+  function paintBand(index) {
+    var band = BANDS[index];
+    var value = STATE.eq[index];
+    var track = $('track-' + band.id);
+    var thumb = $('thumb-' + band.id);
+    var fill = $('fill-' + band.id);
+    var label = $('val-' + band.id);
+    if (!track || !thumb || !fill || !label) return;
+
+    var y = 50 - (value / 10) * 45;
+    thumb.style.top = y + '%';
+    fill.style.top = Math.min(50, y) + '%';
+    fill.style.height = Math.abs(50 - y) + '%';
+    fill.setAttribute('data-sign', value < 0 ? 'neg' : 'pos');
+
+    label.textContent = (value > 0 ? '+' : '') + value + ' dB';
+    setClass(label, 'is-zero', value === 0);
+    track.setAttribute('aria-valuenow', String(value));
+    track.setAttribute('aria-valuetext', (value > 0 ? 'plus ' : value < 0 ? 'minus ' : '') + Math.abs(value) + ' decibels');
+  }
+
+  function paintAllBands() {
+    BANDS.forEach(function (band, index) { paintBand(index); });
+  }
+
+  function setBand(index, value, options) {
+    options = options || {};
+    STATE.eq[index] = Core.clamp(Math.round(Number(value) || 0), -10, 10);
+    paintBand(index);
+    if (!options.silent) {
+      Store.set(K.eq, JSON.stringify(STATE.eq));
+      clearPresetSelection();
+    }
+  }
+
+  function applyBands(map, options) {
+    options = options || {};
+    BANDS.forEach(function (band, index) {
+      if (map && map[band.id] != null) {
+        STATE.eq[index] = Core.clamp(Math.round(Number(map[band.id]) || 0), -10, 10);
+      }
+      paintBand(index);
+    });
+    if (!options.silent) Store.set(K.eq, JSON.stringify(STATE.eq));
+  }
+
+  function clearPresetSelection() {
+    each(doc.querySelectorAll('#eq-presets .chip'), function (chip) {
+      chip.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  function bindBands() {
+    BANDS.forEach(function (band, index) {
+      var track = $('track-' + band.id);
+      if (!track) return;
+
+      function fromPointer(event) {
+        var rect = track.getBoundingClientRect();
+        if (!rect.height) return;
+        var y = Core.clamp(event.clientY - rect.top, 0, rect.height);
+        var value = Math.round((0.5 - y / rect.height) * 20);
+        setBand(index, value, { silent: true });
+      }
+
+      function commit() {
+        track.classList.remove('is-dragging');
+        Store.set(K.eq, JSON.stringify(STATE.eq));
+        clearPresetSelection();
+      }
+
+      on(track, 'pointerdown', function (event) {
+        event.preventDefault();
+        track.classList.add('is-dragging');
+        try { track.setPointerCapture(event.pointerId); } catch (e) {}
+        fromPointer(event);
+        haptic(5);
+      });
+      on(track, 'pointermove', function (event) {
+        if (track.classList.contains('is-dragging')) fromPointer(event);
+      });
+      on(track, 'pointerup', commit);
+      on(track, 'pointercancel', commit);
+
+      on(track, 'keydown', function (event) {
+        var value = STATE.eq[index];
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') { event.preventDefault(); setBand(index, value + 1); }
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') { event.preventDefault(); setBand(index, value - 1); }
+        else if (event.key === 'Home') { event.preventDefault(); setBand(index, 10); }
+        else if (event.key === 'End') { event.preventDefault(); setBand(index, -10); }
+        else if (event.key === '0' || event.key === 'Delete') { event.preventDefault(); setBand(index, 0); }
+      });
+    });
+  }
+
+  function renderEQResult(eq, response, rawText) {
+    STATE.eqResult = { data: eq, meta: response, raw: rawText };
+
+    $('eq-result').hidden = false;
+    setActionsEnabled('eq', true);
+    showNotice($('eq-notice'), null);
+    setBadge($('eq-badge'), response);
+    $('eq-title').textContent = 'Suggested curve';
+    $('eq-meta').textContent = metaText(response, '');
+
+    var summary = $('eq-summary');
+    summary.textContent = eq.summary || '';
+    summary.hidden = !eq.summary;
+
+    var dsp = $('eq-dsp');
+    clearNode(dsp);
+    if (eq.bassBoost) dsp.appendChild(el('span', 'tag', 'Bass boost ' + eq.bassBoost));
+    if (eq.virtualizer) dsp.appendChild(el('span', 'tag', '3D ' + eq.virtualizer));
+    if (eq.reverb) dsp.appendChild(el('span', 'tag', eq.reverb));
+
+    scrollToNode($('eq-result'), true);
+    announce('Curve applied. ' + Core.bandText(eq.bands));
+  }
+
+  async function runEQ() {
+    var input = $('eq-input');
+    var target = (input.value || '').trim();
+    if (!target) {
+      toast('Describe the sound you want first.', 'error');
+      input.focus();
+      return;
+    }
+    if (STATE.busy.eq) return;
+    STATE.busy.eq = true;
+
+    var button = $('btn-eq');
+    setBusy(button, true, 'Shaping the curve…');
+    setActionsEnabled('eq', false);
+    STATE.eqResult = null;
+    $('eq-result').hidden = false;
+    $('eq-body').hidden = true;
+    $('eq-badge').textContent = 'Working';
+    $('eq-badge').setAttribute('data-kind', '');
+    $('eq-meta').textContent = 'Calculating gains…';
+    showSkeleton($('eq-notice'), 'Calculating gains for ' + target);
+
+    var prompt = 'Target sound: ' + target + '\n' +
+      'Current curve: ' + Core.bandText(bandsObject()) + '\n' +
+      'Propose the five gains (and DSP extras) that move this curve toward the target.';
+
+    try {
+      var response = await generate({ prompt: prompt, system: EQ_SYSTEM, json: true, timeoutMs: 70000 });
+      var parsed = Core.extractJSON(response.text);
+      var eq = Core.normaliseEQ(parsed);
+
+      if (!Object.keys(eq.bands).length) {
+        throw new AIError('The engine returned no band gains.', 'Try a more concrete description — a genre, a room or an instrument.');
+      }
+
+      applyBands(eq.bands);
+      $('eq-body').hidden = false;
+      renderEQResult(eq, response, Core.stripFences(response.text));
+    } catch (error) {
+      var mapped = (error instanceof AIError) ? error : translateNetwork(error);
+      $('eq-body').hidden = true;
+      $('eq-badge').textContent = 'Not generated';
+      $('eq-badge').setAttribute('data-kind', 'muted');
+      $('eq-meta').textContent = '';
+      setActionsEnabled('eq', false);
+      errorNotice($('eq-notice'), mapped, runEQ);
+    } finally {
+      STATE.busy.eq = false;
+      setBusy(button, false);
+    }
+  }
+
+  /* --------------------------------------------------------------- vault */
+
+  function refreshKeyStates() {
+    [
+      { id: 'gemini', stateId: 'gemini-state', labelId: 'gemini-label' },
+      { id: 'groq', stateId: 'groq-state', labelId: 'groq-label' }
+    ].forEach(function (row) {
+      var key = keyFor(row.id);
+      var stateNode = $(row.stateId);
+      var labelNode = $(row.labelId);
+      if (!stateNode || !labelNode) return;
+      stateNode.setAttribute('data-on', key ? 'true' : 'false');
+      labelNode.textContent = key ? 'Saved' : 'No key';
+      if (key) stateNode.title = 'Saved key ending ' + key.slice(-4);
+      else stateNode.removeAttribute('title');
+    });
+  }
+
+  function refreshCompanionCard() {
+    var stateNode = $('companion-state');
+    var labelNode = $('companion-label');
+    var subNode = $('companion-sub');
+    var titleNode = $('companion-title');
+    if (!stateNode || !labelNode) return;
+
+    if (titleNode) {
+      titleNode.textContent = window.location.protocol === 'file:'
+        ? '127.0.0.1:8080'
+        : (window.location.host || 'local companion');
+    }
+
+    if (!STATE.companion.checked) {
+      stateNode.setAttribute('data-on', 'false');
+      labelNode.textContent = 'Checking';
+      return;
+    }
+
+    if (STATE.companion.ok) {
+      stateNode.setAttribute('data-on', 'true');
+      labelNode.textContent = 'Connected';
+      var health = STATE.companion.health || {};
+      var vault = health.vault || {};
+      var bits = ['Proxy ready'];
+      if ((vault.gemini || 0) + (vault.groq || 0) > 0) {
+        bits.push('vault ' + (vault.gemini || 0) + ' Gemini · ' + (vault.groq || 0) + ' Groq');
+      }
+      if (health.version) bits.push('v' + health.version);
+      if (subNode) subNode.textContent = bits.join(' · ');
+    } else {
+      stateNode.setAttribute('data-on', 'false');
+      labelNode.textContent = 'Offline';
+      if (subNode) {
+        subNode.textContent = 'Not reached. Start it with "python gemini_companion.py --serve", or keep using a device key.';
+      }
+    }
+  }
+
+  function refreshStatus() {
+    var chip = $('status-chip');
+    var text = $('status-text');
+    if (!chip || !text) return;
+
+    var hasDeviceKey = hasLocalKey();
+    var health = STATE.companion.health || {};
+    var vault = health.vault || {};
+    var vaultKeys = (vault.gemini || 0) + (vault.groq || 0);
+    var state, label, spoken;
+
+    if (!STATE.companion.checked) {
+      state = 'checking'; label = 'Checking'; spoken = 'checking engine status';
+    } else if (STATE.companion.ok) {
+      state = 'ready';
+      label = vaultKeys > 0 ? 'Vault linked' : 'Companion';
+      spoken = 'companion connected' + (vaultKeys > 0 ? ' with vault keys' : '');
+    } else if (hasDeviceKey) {
+      state = 'device'; label = 'Device key'; spoken = 'device key saved';
+    } else {
+      state = 'none'; label = 'No key'; spoken = 'no key saved';
+    }
+
+    chip.setAttribute('data-state', state);
+    text.textContent = label;
+    chip.setAttribute('aria-label', 'Engine status: ' + spoken + '. Open Engine.');
+  }
+
+  function refreshVault() {
+    refreshKeyStates();
+    refreshCompanionCard();
+    refreshStatus();
+  }
+
+  function saveKey(provider) {
+    var input = $(provider === 'gemini' ? 'key-gemini' : 'key-groq');
+    if (!input) return;
+    var value = (input.value || '').trim();
+    if (value.length < 12) {
+      toast('That key looks too short. Paste the full key.', 'error');
+      input.focus();
+      return;
+    }
+    if (/\s/.test(value)) value = value.replace(/\s+/g, '');
+    Store.set(provider === 'gemini' ? K.gemini : K.groq, value);
+    input.value = '';
+    input.type = 'password';
+    refreshVault();
+    toast(provider === 'gemini' ? 'Gemini key saved on this device.' : 'Groq key saved on this device.', 'success');
+    announce('Key saved');
+  }
+
+  function clearKey(provider) {
+    var had = !!keyFor(provider);
+    Store.set(provider === 'gemini' ? K.gemini : K.groq, null);
+    var input = $(provider === 'gemini' ? 'key-gemini' : 'key-groq');
+    if (input) input.value = '';
+    refreshVault();
+    toast(had ? 'Key removed from this device.' : 'No key was saved.', had ? 'success' : 'info');
+  }
+
+  async function runDiagnostics() {
+    if (STATE.busy.diag) return;
+    STATE.busy.diag = true;
+
+    var button = $('btn-diag');
+    setBusy(button, true, 'Testing…');
+    var result = $('diag-result');
+    var box = $('diag-output');
+    result.hidden = false;
+    clearNode(box);
+    $('diag-badge').textContent = 'Testing';
+    showSkeleton($('diag-notice'), 'Running the connection test');
+
+    await probeCompanion();
+    refreshVault();
+
+    try {
+      var response = await generate({
+        prompt: 'Reply with the single word: pong',
+        system: 'Answer with exactly one word.',
+        maxTokens: 32,
+        timeoutMs: 30000
+      });
+
+      showNotice($('diag-notice'), null);
+      $('diag-badge').textContent = 'Passed';
+
+      var rows = [
+        ['Engine', prettyModel(response.provider, response.model) || '—'],
+        ['Model', response.model || '—'],
+        ['Route', response.via === 'companion' ? 'Local companion' : 'Direct from this device'],
+        ['Latency', response.ms ? (response.ms / 1000).toFixed(2) + ' s' : '—'],
+        ['Reply', Core.stripFences(response.text).slice(0, 60) || '—'],
+        ['Companion', STATE.companion.ok ? 'Connected' : 'Not running']
+      ];
+
+      rows.forEach(function (row) {
+        var line = el('div', 'lrc-line');
+        line.appendChild(el('span', 'lrc-ts', row[0]));
+        line.appendChild(el('span', 'lrc-text', String(row[1])));
+        box.appendChild(line);
+      });
+
+      refreshVault();
+      toast('Connection test passed', 'success');
+      announce('Connection test passed using ' + prettyModel(response.provider, response.model));
+    } catch (error) {
+      result.hidden = true;
+      var mapped = (error instanceof AIError) ? error : translateNetwork(error);
+      errorNotice($('diag-notice'), mapped, runDiagnostics);
+    } finally {
+      STATE.busy.diag = false;
+      setBusy(button, false);
+    }
+  }
+
+  /* -------------------------------------------------------------- samples */
+
+  var SAMPLES = {
+    lyrics: [
+      '[ti:Elohim Adonai Shammah]',
+      '[ar:Prince Shema Jr.]',
+      '[al:Audenic AI Studio]',
+      '[by:Audenic sample]',
+      '[00:00.00] (Instrumental intro)',
+      '[00:09.40] (Verse 1)',
+      '[00:12.80] We lift our voices to the morning light',
+      '[00:17.20] Your faithfulness is written in the sky',
+      '[00:21.60] Every breath a quiet thank you',
+      '[00:26.00] Every step a song of praise',
+      '[00:30.40] (Chorus)',
+      '[00:33.20] Elohim, Adonai, Shammah',
+      '[00:37.60] You are here beside us now',
+      '[00:42.00] Elohim, Adonai, Shammah',
+      '[00:46.40] Forever we will sing your name',
+      '[00:52.80] (Instrumental bridge)',
+      '[00:58.00] (Verse 2)',
+      '[01:01.40] The night is long but you remain',
+      '[01:05.80] A steady hand through every change'
+    ].join('\n'),
+
+    curator: {
+      title: 'Sunday Morning Devotion',
+      description: 'A slow burn from affirmation into celebration — quiet keys, then drums, then the room singing.',
+      tracks: [
+        { title: 'Nipe Nguvu', artist: 'Neema Gospel Choir', genre: 'Swahili worship', bpm: 68, duration: '4:12', why: 'Opening quietude: a single piano and a choir that breathes together.' },
+        { title: 'Kwa Neema Tu', artist: 'Zawadi Mungu', genre: 'Acoustic gospel', bpm: 72, duration: '3:48', why: 'Keeps the room soft while adding a gentle guitar figure.' },
+        { title: 'You Remain', artist: 'The Ushindi Collective', genre: 'Contemporary worship', bpm: 76, duration: '5:01', why: 'Builds the first lift without breaking the mood.' },
+        { title: 'Nakulilia Bwana', artist: 'Mlimani Voices', genre: 'Bongo worship', bpm: 84, duration: '4:22', why: 'The first drums — a warm, patient groove.' },
+        { title: 'Shammah', artist: 'Prince Shema Jr.', genre: 'Afro-gospel', bpm: 92, duration: '4:40', why: 'The congregation can join by the second chorus.' },
+        { title: 'Mungu Mwema', artist: 'Faraja Amani', genre: 'Swahili praise', bpm: 104, duration: '3:55', why: 'Full celebration: claps, brass and call-and-response.' }
+      ]
+    },
+
+    eq: {
+      bands: { '60': 4, '230': 2, '910': -1, '36k': 3, '14k': 5 },
+      bassBoost: '35%',
+      virtualizer: '15%',
+      reverb: 'MediumRoom',
+      summary: 'Warm church choir emphasis: lift the sub and air while easing 910 Hz so the pastoral vocal sits inside the reverb rather than on top of it.'
+    }
+  };
+
+  function sampleMeta() {
+    return { sample: true, provider: 'sample', model: '', ms: 0, via: 'sample' };
+  }
+
+  function showSampleLyrics() {
+    renderLyrics(SAMPLES.lyrics, sampleMeta(), 'Elohim Adonai Shammah');
+    announce('Sample output shown. No request was sent.');
+  }
+
+  function showSampleCurator() {
+    var curator = Core.normaliseCurator(SAMPLES.curator, '');
+    $('curator-body').hidden = false;
+    renderCurator(curator, sampleMeta(), '');
+    announce('Sample setlist shown. No request was sent.');
+  }
+
+  function showSampleEQ() {
+    var eq = Core.normaliseEQ(SAMPLES.eq);
+    applyBands(eq.bands, { silent: true });
+    $('eq-body').hidden = false;
+    renderEQResult(eq, sampleMeta(), '');
+    announce('Sample curve shown. No request was sent.');
+  }
+
+  function eqPlainText() {
+    if (!STATE.eqResult) return Core.bandText(bandsObject());
+    var eq = STATE.eqResult.data;
+    var parts = [Core.bandText(eq.bands)];
+    if (eq.bassBoost) parts.push('Bass boost ' + eq.bassBoost);
+    if (eq.virtualizer) parts.push('3D ' + eq.virtualizer);
+    if (eq.reverb) parts.push(eq.reverb);
+    var line = parts.join(' · ');
+    return eq.summary ? line + '\n' + eq.summary : line;
+  }
+
+  /* ------------------------------------------------------------ behaviour */
+
+  function goBack() {
+    var bridges = ['AudenicBack', 'AudenicAndroid', 'Android', 'AndroidBridge', 'JsBridge'];
+    for (var i = 0; i < bridges.length; i++) {
+      var bridge = window[bridges[i]];
+      if (bridge && typeof bridge.onBack === 'function') {
+        try { bridge.onBack(); return; } catch (e) {}
+      }
+      if (bridge && typeof bridge.back === 'function') {
+        try { bridge.back(); return; } catch (e) {}
+      }
+    }
+    if (window.history.length > 1) { window.history.back(); return; }
+    toast('Use the system back gesture to leave the Studio.', 'info');
+  }
+
+  function bindChips() {
+    each(doc.querySelectorAll('#song-chips .chip'), function (chip) {
+      on(chip, 'click', function () {
+        haptic(6);
+        var value = chip.getAttribute('data-song') || '';
+        $('song-input').value = value;
+        Store.set(K.song, value);
+        updateSongClear();
+        $('song-input').focus();
+      });
+    });
+
+    each(doc.querySelectorAll('#curator-chips .chip'), function (chip) {
+      on(chip, 'click', function () {
+        haptic(6);
+        var value = chip.getAttribute('data-theme') || '';
+        $('curator-input').value = value;
+        Store.set(K.curator, value);
+        $('curator-input').focus();
+      });
+    });
+
+    each(doc.querySelectorAll('#eq-presets .chip'), function (chip) {
+      on(chip, 'click', function () {
+        var preset = PRESETS[chip.getAttribute('data-preset')];
+        if (!preset) return;
+        haptic(6);
+        applyBands(
+          { '60': preset.bands[0], '230': preset.bands[1], '910': preset.bands[2], '36k': preset.bands[3], '14k': preset.bands[4] },
+          { silent: true }
+        );
+        clearPresetSelection();
+        chip.setAttribute('aria-pressed', 'true');
+        Store.set(K.eq, JSON.stringify(STATE.eq));
+        announce(chip.textContent + ' preset applied');
+      });
+    });
+  }
+
+  function updateSongClear() {
+    var clear = $('song-clear');
+    var input = $('song-input');
+    if (clear && input) clear.hidden = !(input.value || '').trim();
+  }
+
+  function persistInput(node, key) {
+    if (!node) return;
+    var timer = null;
+    on(node, 'input', function () {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(function () { Store.set(key, (node.value || '').trim()); }, 400);
+    });
+  }
+
+  function bindControls() {
+    bindChips();
+
+    on($('status-chip'), 'click', function () { activateTab('vault', { reveal: true }); });
+    on($('btn-back'), 'click', goBack);
+
+    /* Lyrics */
+    on($('btn-lyrics'), 'click', runLyrics);
+    on($('lyrics-sample-btn'), 'click', showSampleLyrics);
+    on($('lyrics-copy'), 'click', function () {
+      copyText(STATE.lyrics.text || '', 'LRC copied');
+    });
+    on($('lyrics-save'), 'click', function () {
+      if (!STATE.lyrics.text) { toast('Generate or preview lyrics first.', 'error'); return; }
+      var name = fileSafe(STATE.lyrics.parsed && STATE.lyrics.parsed.meta && STATE.lyrics.parsed.meta.ti, 'audenic-lyrics');
+      downloadFile(name + '.lrc', STATE.lyrics.text, 'text/plain;charset=utf-8');
+    });
+
+    var songInput = $('song-input');
+    if (songInput) {
+      persistInput(songInput, K.song);
+      on(songInput, 'input', updateSongClear);
+      on(songInput, 'keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); runLyrics(); }
+      });
+    }
+    on($('song-clear'), 'click', function () {
+      $('song-input').value = '';
+      Store.set(K.song, null);
+      updateSongClear();
+      $('song-input').focus();
+    });
+
+    /* Curator */
+    on($('btn-curator'), 'click', runCurator);
+    on($('curator-sample-btn'), 'click', showSampleCurator);
+    on($('curator-copy'), 'click', function () {
+      var text = curatorPlainText();
+      if (!text) { toast('Curate or preview a setlist first.', 'error'); return; }
+      copyText(text, 'Setlist copied');
+    });
+    on($('curator-save'), 'click', function () {
+      if (!STATE.curator) { toast('Curate or preview a setlist first.', 'error'); return; }
+      var data = STATE.curator.data;
+      var content = Core.m3uFrom(data, { fallbackTitle: 'Audenic Playlist' });
+      downloadFile(fileSafe(data.title, 'audenic-setlist') + '.m3u', content, 'audio/x-mpegurl');
+    });
+
+    var curatorInput = $('curator-input');
+    if (curatorInput) {
+      persistInput(curatorInput, K.curator);
+      on(curatorInput, 'keydown', function (event) {
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); runCurator(); }
+      });
+    }
+
+    /* EQ */
+    on($('btn-eq'), 'click', runEQ);
+    on($('eq-sample-btn'), 'click', showSampleEQ);
+    on($('eq-copy'), 'click', function () {
+      copyText(eqPlainText(), 'Curve copied');
+    });
+    var eqInput = $('eq-input');
+    if (eqInput) {
+      on(eqInput, 'keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); runEQ(); }
+      });
+    }
+
+    /* Vault */
+    var providerSelect = $('provider-select');
+    if (providerSelect) {
+      on(providerSelect, 'change', function () {
+        STATE.provider = providerSelect.value;
+        Store.set(K.provider, STATE.provider);
+        announce('Preferred engine set to ' + providerSelect.options[providerSelect.selectedIndex].text);
+      });
+    }
+
+    on($('btn-save-gemini'), 'click', function () { saveKey('gemini'); });
+    on($('btn-clear-gemini'), 'click', function () { clearKey('gemini'); });
+    on($('btn-save-groq'), 'click', function () { saveKey('groq'); });
+    on($('btn-clear-groq'), 'click', function () { clearKey('groq'); });
+
+    ['key-gemini', 'key-groq'].forEach(function (id) {
+      var input = $(id);
+      if (!input) return;
+      on(input, 'keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          saveKey(id === 'key-gemini' ? 'gemini' : 'groq');
+        }
+      });
+    });
+
+    on($('btn-diag'), 'click', runDiagnostics);
+    on($('btn-recheck'), 'click', async function () {
+      var button = $('btn-recheck');
+      button.disabled = true;
+      STATE.companion.checked = false;
+      refreshStatus();
+      var ok = await probeCompanion();
+      refreshVault();
+      button.disabled = false;
+      toast(ok ? 'Companion connected.' : 'No companion answered on port 8080.', ok ? 'success' : 'error');
+    });
+
+    /* Lifecycle */
+    on(doc, 'visibilitychange', function () {
+      if (doc.hidden) Karaoke.pause();
+    });
+    on(window, 'offline', function () { toast('You are offline. The Studio needs a connection.', 'error'); });
+    on(window, 'online', function () {
+      STATE.companion.checked = false;
+      probeCompanion().then(refreshVault);
+    });
+  }
+
+  /* ----------------------------------------------------------------- init */
+
+  function hydrate() {
+    var provider = Store.get(K.provider);
+    if (provider === 'gemini' || provider === 'groq' || provider === 'auto') STATE.provider = provider;
+    var select = $('provider-select');
+    if (select) select.value = STATE.provider;
+
+    var song = Store.get(K.song);
+    if (song && $('song-input')) $('song-input').value = song;
+    updateSongClear();
+
+    var theme = Store.get(K.curator);
+    if (theme && $('curator-input')) $('curator-input').value = theme;
+
+    try {
+      var stored = JSON.parse(Store.get(K.eq) || 'null');
+      if (Array.isArray(stored) && stored.length === BANDS.length) {
+        STATE.eq = stored.map(function (value) { return Core.clamp(Math.round(Number(value) || 0), -10, 10); });
+      }
+    } catch (e) {}
+
+    var tab = Store.get(K.tab);
+    if (TAB_NAMES.indexOf(tab) !== -1) STATE.tab = tab;
+  }
+
+  function init() {
+    if (window.location.protocol === 'file:') doc.body.classList.add('is-device');
+
+    hydrate();
+    setActionsEnabled('lyrics', false);
+    setActionsEnabled('curator', false);
+    setActionsEnabled('eq', false);
+    bindTabs();
+    bindBands();
+    Karaoke.bind();
+    bindControls();
+    paintAllBands();
+    activateTab(STATE.tab);
+    refreshVault();
+    probeCompanion().then(refreshVault);
+  }
+
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 </script>
 
 </body>

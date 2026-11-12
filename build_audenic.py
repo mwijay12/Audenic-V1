@@ -1,18 +1,73 @@
-﻿import zipfile, struct, os, shutil, subprocess
+﻿"""
+Build the rebranded Audenic APK from the decompiled Lark tree.
 
-LARK_ZIP = r"C:\Users\Administrator\Desktop\LARK\Lark_Player.zip"
-WORK_BUILD = r"C:\Users\Administrator\Desktop\LARK\work\decoded\build\apk"
-WEB_TRANSFER = r"C:\Users\Administrator\Desktop\LARK\assets\transfer_web"
-TEMP_APK = r"C:\Users\Administrator\Desktop\LARK\audenic_unsigned.apk"
-FINAL_DIR = r"C:\Users\Administrator\Desktop\LARK\dist"
-JAVA_EXE = r"C:\Users\Administrator\AppData\Local\Temp\opencode\tools\jdk\jdk-21.0.13+9\bin\java.exe"
-SIGNER_JAR = r"C:\Users\Administrator\AppData\Local\Temp\opencode\tools\uber-apk-signer.jar"
-AUDENIC_LOTTIE = r"C:\Users\Administrator\Desktop\LARK\test_audenic.lottie"
-GEN_LOTTIE_SCRIPT = r"C:\Users\Administrator\Desktop\LARK\generate_audenic_lottie.py"
+Every path can be overridden with an environment variable, so the script is not
+tied to one Windows profile:
+
+  AUDENIC_ROOT      project root            (default: <repo> or Desktop\LARK)
+  AUDENIC_SOURCE_APK  source Lark_Player.zip
+  AUDENIC_WEB_DIR     Studio assets          (default: ./assets/transfer_web)
+  AUDENIC_OUT         final output directory
+
+The Studio assets default to *this repository's* assets/transfer_web, so a
+rebuild always ships the current UI rather than a stale copy on the Desktop.
+"""
+
+import os
+import shutil
+import struct
+import subprocess
+import sys
+import zipfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_ROOT = r"C:\Users\Administrator\Desktop\LARK"
+ROOT = os.environ.get("AUDENIC_ROOT") or (HERE if os.path.isdir(os.path.join(HERE, "assets")) else DEFAULT_ROOT)
+
+LARK_ZIP = os.environ.get("AUDENIC_SOURCE_APK") or os.path.join(ROOT, "Lark_Player.zip")
+WORK_BUILD = os.path.join(ROOT, "work", "decoded", "build", "apk")
+WEB_TRANSFER = os.environ.get("AUDENIC_WEB_DIR") or os.path.join(HERE, "assets", "transfer_web")
+if not os.path.isdir(WEB_TRANSFER):
+    WEB_TRANSFER = os.path.join(ROOT, "assets", "transfer_web")
+TEMP_APK = os.path.join(ROOT, "audenic_unsigned.apk")
+FINAL_DIR = os.environ.get("AUDENIC_OUT") or os.path.join(ROOT, "dist")
+JAVA_EXE = os.environ.get("AUDENIC_JAVA") or r"C:\Users\Administrator\AppData\Local\Temp\opencode\tools\jdk\jdk-21.0.13+9\bin\java.exe"
+SIGNER_JAR = os.environ.get("AUDENIC_SIGNER") or r"C:\Users\Administrator\AppData\Local\Temp\opencode\tools\uber-apk-signer.jar"
+AUDENIC_LOTTIE = os.path.join(ROOT, "test_audenic.lottie")
+GEN_LOTTIE_SCRIPT = os.path.join(ROOT, "generate_audenic_lottie.py")
+
+
+def _preflight():
+    missing = []
+    if not os.path.isfile(LARK_ZIP):
+        missing.append(f"source APK: {LARK_ZIP}")
+    if not os.path.isdir(WEB_TRANSFER):
+        missing.append(f"Studio assets: {WEB_TRANSFER}")
+    if not os.path.isfile(SIGNER_JAR):
+        missing.append(f"uber-apk-signer: {SIGNER_JAR}")
+    if not os.path.isfile(JAVA_EXE):
+        missing.append(f"java: {JAVA_EXE}")
+    if missing:
+        print("Cannot build — missing inputs:")
+        for item in missing:
+            print(f"  - {item}")
+        print("\nOverride paths with AUDENIC_ROOT, AUDENIC_SOURCE_APK, AUDENIC_WEB_DIR,")
+        print("AUDENIC_JAVA and AUDENIC_SIGNER.")
+        sys.exit(1)
+
+
+_preflight()
+
+print(f"Source APK : {LARK_ZIP}")
+print(f"Studio     : {WEB_TRANSFER}")
+print(f"Output     : {FINAL_DIR}")
 
 # Step 0: Ensure fresh crisp Lottie container
-print("[0/5] Ensuring crisp Audenic Lottie container...")
-subprocess.run(["py", GEN_LOTTIE_SCRIPT], check=True)
+if os.path.isfile(GEN_LOTTIE_SCRIPT):
+    print("[0/5] Ensuring crisp Audenic Lottie container...")
+    subprocess.run([sys.executable, GEN_LOTTIE_SCRIPT], check=True)
+else:
+    print("[0/5] Lottie generator not found — keeping the existing animation.")
 
 print("[1/5] Patching resources.arsc...")
 with zipfile.ZipFile(LARK_ZIP, "r") as z:
@@ -213,13 +268,22 @@ if res.returncode != 0:
 else:
     print("[5/5] Copying final Audenic.apk to Desktop and workspace...")
     signed_apk = os.path.join(FINAL_DIR, "audenic_unsigned-aligned-debugSigned.apk")
+    if not os.path.exists(signed_apk):
+        candidates = [f for f in os.listdir(FINAL_DIR) if f.lower().endswith(".apk")]
+        signed_apk = os.path.join(FINAL_DIR, candidates[0]) if candidates else signed_apk
+
     if os.path.exists(signed_apk):
-        desktop_apk = r"C:\Users\Administrator\Desktop\Audenic.apk"
-        local_apk = r"C:\Users\Administrator\Desktop\LARK\Audenic.apk"
-        shutil.copy2(signed_apk, desktop_apk)
-        shutil.copy2(signed_apk, local_apk)
-        print(f"SUCCESS! Final signed Audenic APK is ready:")
-        print(f"  -> {desktop_apk} ({os.path.getsize(desktop_apk)} bytes)")
-        print(f"  -> {local_apk} ({os.path.getsize(local_apk)} bytes)")
+        targets = [os.path.join(ROOT, "Audenic.apk")]
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        if os.path.isdir(desktop):
+            targets.append(os.path.join(desktop, "Audenic.apk"))
+
+        print("SUCCESS! Final signed Audenic APK is ready:")
+        for target in targets:
+            try:
+                shutil.copy2(signed_apk, target)
+                print(f"  -> {target} ({os.path.getsize(target)} bytes)")
+            except OSError as error:
+                print(f"  -> skipped {target}: {error}")
     else:
-        print("Could not find signed APK:", signed_apk)
+        print("Could not find a signed APK in", FINAL_DIR)

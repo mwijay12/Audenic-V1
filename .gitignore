@@ -31,6 +31,10 @@ bin/
 /org/
 /res/
 
+# Node (UI smoke tests are run outside the repo)
+node_modules/
+package-lock.json
+
 # Python cache & virtual environments
 __pycache__/
 *.py[cod]

@@ -2,7 +2,35 @@
 
 ---
 
-## v2 — Studio quality pass · 12 November 2026
+## v2.1 — Buildable, verifiable APK · 15 November 2026
+
+**Made by Mwijay** now appears in the product itself, and a build can prove
+which Studio it contains.
+
+- **Maker credit** — footer line plus a maker card at the end of the Engine tab,
+  `<meta name="author">`, and the document title.
+- **Build guard** — `build_audenic.py` hashes every Studio file (25), then re-reads
+  `assets/transfer_web/index.html` *out of the packaged APK*. One byte of drift
+  aborts before signing; the signed artifact is verified again with its SHA-256.
+- **`--verify <apk>`** — audit any APK for the current Studio. Exit `0` current,
+  `1` stale, `3` build aborted.
+- **`--doctor`** — prints every resolved path (source APK, Studio, JDK, signer,
+  dex_out, output) and exactly what is missing, instead of a traceback.
+- **`--fetch-tools`** — downloads uber-apk-signer 1.3.0 from its GitHub release
+  into `tools/`.
+- **`--no-sign`** — packages and verifies without signing, for builds that use
+  a personal keystore or sign on another machine.
+- **No hardcoded paths left** — `dex_out`, the notification icons and the signer
+  are resolved relative to `AUDENIC_ROOT`, and `java` is found on `PATH`.
+- **`build_audenic.bat`** — replaced the standalone apktool + `custom.jks`
+  pipeline (different keystore and build path from the Python script) with a
+  wrapper around `build_audenic.py`. Dragging an `.apk` onto it runs `--verify`.
+- **Cloud build** — `.github/workflows/build-apk.yml` builds, verifies and
+  uploads a signed APK on a GitHub runner from a source-APK URL.
+
+---
+
+## v2 — Studio quality pass · 12 November 2026 · 12 November 2026
 
 A deep review of the AI Studio and its companion server. The previous UI looked
 finished but four defects meant the key features could not work as advertised.

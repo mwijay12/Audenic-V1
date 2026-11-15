@@ -31,6 +31,9 @@ bin/
 /org/
 /res/
 
+# Local build tools (python build_audenic.py --fetch-tools)
+/tools/
+
 # Node (UI smoke tests are run outside the repo)
 node_modules/
 package-lock.json

@@ -167,4 +167,20 @@ test('writes a valid m3u with durations', () => {
   assert.match(text, /#EXTINF:-1,Two\nTwo\.mp3/);
 });
 
+console.log('\n branding');
+test('credits Mwijay in the document, the footer and the Engine tab', () => {
+  assert.match(html, /<meta name="author" content="Mwijay">/);
+  assert.match(html, /<title>Audenic AI Studio · by Mwijay<\/title>/);
+  assert.match(html, /<p class="foot-credit">Made by <strong>Mwijay<\/strong><\/p>/);
+  assert.match(html, /class="about-ver">AI Studio 2\.0</);
+});
+test('keeps the engine and privacy line in the footer', () => {
+  const foot = html.slice(html.indexOf('<footer class="foot">'), html.indexOf('</footer>'));
+  assert.match(foot, /Gemini 3.8 Flash → Groq/);
+  assert.match(foot, /Keys stay on your device/);
+});
+test('ships no leftover build placeholders', () => {
+  assert.doesNotMatch(html, /\bTODO\b|\bFIXME\b|localhost:3000/);
+});
+
 console.log(`\n${passed} checks passed${process.exitCode ? ' (with failures)' : ''}\n`);

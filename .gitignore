@@ -58,4 +58,5 @@ seed_firebase_vault.py
 *.xml
 *.log
 !assets/**
+!branding/**
 !test_audenic.lottie

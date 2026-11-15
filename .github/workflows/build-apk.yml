@@ -22,7 +22,7 @@ on:
       - "arena/**"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build-apk-${{ github.ref }}
@@ -67,6 +67,10 @@ jobs:
           if [ -n "$URL" ]; then
             echo "Downloading source APK from configured URL..."
             curl -fL --retry 3 --retry-delay 2 -o Lark_Player.zip "$URL"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ -f "source/Lark_Player.zip" ]; then
+            echo "Using repository source/Lark_Player.zip."
+            cp source/Lark_Player.zip Lark_Player.zip
             echo "available=true" >> "$GITHUB_OUTPUT"
           elif gh release download source-base -p "Lark_Player.zip" -O Lark_Player.zip 2>/dev/null; then
             echo "Downloaded Lark_Player.zip from source-base release."
@@ -118,3 +122,21 @@ jobs:
             dist/Audenic-debug.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
+
+      - name: Publish debug-preview release on GitHub
+        if: steps.source.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          NOTES="Debug-signed Audenic APK built from \`${{ github.ref_name }}\` (\`${{ github.sha }}\`).\n\n$(cat dist/SHA256SUMS.txt)"
+          if gh release view debug-preview >/dev/null 2>&1; then
+            gh release upload debug-preview dist/Audenic-debug.apk dist/SHA256SUMS.txt --clobber
+            gh release edit debug-preview --notes "$(printf '%b' "$NOTES")"
+          else
+            gh release create debug-preview dist/Audenic-debug.apk dist/SHA256SUMS.txt \
+              --target "${{ github.sha }}" \
+              --prerelease \
+              --title "Audenic Debug APK (Latest)" \
+              --notes "$(printf '%b' "$NOTES")"
+          fi

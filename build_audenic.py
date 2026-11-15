@@ -38,6 +38,10 @@ DEFAULT_ROOT = r"C:\Users\Administrator\Desktop\LARK"
 ROOT = os.environ.get("AUDENIC_ROOT") or (HERE if os.path.isdir(os.path.join(HERE, "assets")) else DEFAULT_ROOT)
 
 LARK_ZIP = os.environ.get("AUDENIC_SOURCE_APK") or os.path.join(ROOT, "Lark_Player.zip")
+if not os.path.isfile(LARK_ZIP):
+    _bundled_source = os.path.join(HERE, "source", "Lark_Player.zip")
+    if os.path.isfile(_bundled_source):
+        LARK_ZIP = _bundled_source
 WORK_BUILD = os.environ.get("AUDENIC_WORK_BUILD") or os.path.join(ROOT, "work", "decoded", "build", "apk")
 BRANDING_DIR = os.path.join(HERE, "branding")
 

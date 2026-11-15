@@ -153,12 +153,63 @@ def main():
         ):
             failures.append(f"ARSC rebuild failed: {decoded}")
 
-        # All 18 branding assets must exist in the repo
+        # All 18 branding assets must exist in the repo and have valid AXML/resource refs
         branding = build_audenic._resolve_branding_assets()
         missing_branding = [k for k, p in branding.items() if not os.path.isfile(p)]
         checks += 1
         if missing_branding:
             failures.append(f"missing branding assets: {missing_branding}")
+
+        # Verify compiled AXML vector drawables & valid resource references
+        bad_axml = []
+        for k, p in branding.items():
+            if not k.endswith(".xml") or not os.path.isfile(p):
+                continue
+            d = open(p, "rb").read()
+            t, h, sz = struct.unpack_from("<HHI", d, 0)
+            if t != 0x0003 or sz != len(d):
+                bad_axml.append(k)
+                continue
+            off = h
+            while off < len(d):
+                ct, ch, cs = struct.unpack_from("<HHI", d, off)
+                if ct == 0x0102:
+                    _, _, as_off, as_sz, ac, *_ = struct.unpack_from("<IIHHHHHH", d, off + 16)
+                    for idx in range(ac):
+                        a_off = off + 16 + as_off + idx * as_sz
+                        _, _, _, _, _, dtype, dval = struct.unpack_from("<IIIHBBI", d, a_off)
+                        if dtype in (0x01, 0x02) and dval == 0x7f060504:
+                            bad_axml.append(f"{k}(0x7f060504)")
+                off += cs
+        checks += 1
+        if bad_axml:
+            failures.append(f"invalid branding AXML: {bad_axml}")
+
+        # Verify test_audenic.lottie is pure vector (no raster data:image URIs)
+        lottie_path = os.path.join(ROOT, "test_audenic.lottie")
+        with zipfile.ZipFile(lottie_path) as lzf:
+            anim_json = lzf.read("animations/main.json")
+        checks += 1
+        if b"data:image/" in anim_json:
+            failures.append("test_audenic.lottie should be pure vector without embedded raster images")
+
+        # Verify dex_out/classes4.dex & classes5.dex use com.dywx.larkplayer (not com.audenic.player)
+        bad_dex = []
+        for dname in ("classes4.dex", "classes5.dex"):
+            dbytes = open(os.path.join(ROOT, "dex_out", dname), "rb").read()
+            str_cnt, str_off = struct.unpack_from("<II", dbytes, 56)
+            for sidx in range(str_cnt):
+                so = struct.unpack_from("<I", dbytes, str_off + sidx * 4)[0]
+                p = so
+                while dbytes[p] & 0x80:
+                    p += 1
+                p += 1
+                s = dbytes[p : dbytes.index(0, p)].decode("utf-8", "replace")
+                if s in ("com.audenic.player:playback", "com.audenic.player:splash"):
+                    bad_dex.append(f"{dname}:{s}")
+        checks += 1
+        if bad_dex:
+            failures.append(f"broken process names in dex_out: {bad_dex}")
 
     for failure in failures:
         print(f"  FAIL  {failure}")

@@ -363,19 +363,20 @@ def _resolve_branding_assets():
         ),
         "res/drawable-xhdpi-v4/ic_stat_larkplayer.png": pick(
             os.path.join(ROOT, "ic_stat_audenic.png"),
-            os.path.join(BRANDING_DIR, "ic_stat_audenic.png"),
+            os.path.join(BRANDING_DIR, "res", "drawable-xhdpi-v4", "ic_stat_larkplayer.png"),
         ),
-        "res/drawable-xxhdpi-v4/ic_notification_default_cover.png": pick(
-            os.path.join(ROOT, "ic_notification_cover_audenic.png"),
-            os.path.join(BRANDING_DIR, "ic_notification_cover_audenic.png"),
+        "res/drawable/ic_song_default_notification_cover.xml": pick(
+            os.path.join(WORK_BUILD, "res", "drawable", "ic_song_default_notification_cover.xml"),
+            os.path.join(BRANDING_DIR, "res", "drawable", "ic_song_default_notification_cover.xml"),
         ),
     }
 
     for density in ("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"):
         for kind in ("ic_launcher.webp", "ic_launcher_round.webp"):
             assets[f"res/mipmap-{density}-v4/{kind}"] = pick(
+                os.path.join(WORK_BUILD, "res", f"mipmap-{density}-v4", kind),
                 os.path.join(WORK_BUILD, "res", f"mipmap-{density}", kind),
-                os.path.join(BRANDING_DIR, "res", f"mipmap-{density}", kind),
+                os.path.join(BRANDING_DIR, "res", f"mipmap-{density}-v4", kind),
             )
     return assets
 

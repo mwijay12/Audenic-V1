@@ -1,6 +1,8 @@
 # Audenic V1 ✦
 ### Lossless local music, reels & an AI studio — for Android
 
+**Made by Mwijay.**
+
 Audenic is a rebranded, re-engineered build of a native Android player: local
 media indexing, a native audio pipeline, vertical video reels, and an embedded
 **Audenic AI Studio** that runs inside the app's own WebView.
@@ -19,8 +21,9 @@ This repo holds the parts that can be versioned and reviewed safely:
 | `assets/transfer_web/index.html` | **The AI Studio** — one self-contained, dependency-free page |
 | `assets/transfer_web/core.test.mjs` | Tests for the Studio's parsing layer (`node …`) |
 | `gemini_companion.py` | CLI + local companion server (Gemini → Groq, JSON API) |
-| `build_audenic.py` | Repackages the decoded tree into a signed APK |
-| `build_audenic.bat` | Windows one-shot apktool → align → sign |
+| `build_audenic.py` | Builds, signs and **verifies** the APK (`--doctor`, `--verify`, `--fetch-tools`) |
+| `build_audenic.bat` | Windows one-click wrapper — same script, no hardcoded paths |
+| `.github/workflows/build-apk.yml` | Manual cloud build: source APK in, verified artifact out |
 | `dex_out/classes4.dex`, `classes5.dex` | Patched dex files (launcher + chat UI) |
 | `patch_*.py`, `find_*.py`, `read_*.py` | One-off smali/ARSC inspection scripts from the port |
 | `drive.v3.json`, `*.proto`, `*.properties` | Artifacts that were already in the APK |
@@ -130,27 +133,77 @@ default, and serves **only** `assets/transfer_web` with traversal checks.
 
 ## Build
 
-Prerequisites: JDK 21, Python 3.10+, apktool, uber-apk-signer, the source
-`Lark_Player.zip`, and the decoded tree in `work/decoded/`.
+**Made by Mwijay.** One command turns this repo into a signed `Audenic.apk`:
 
 ```bash
-python build_audenic.py          # or: build_audenic.bat
+python build_audenic.py            # build → sign → verify → copy Audenic.apk
 ```
 
-Paths are configurable instead of hardcoded:
+It needs JDK 17+, Python 3.10+, and the source APK. Not sure what you have?
 
 ```bash
-AUDENIC_SOURCE_APK=/path/Lark_Player.zip \
-AUDENIC_WEB_DIR=$PWD/assets/transfer_web \
-AUDENIC_OUT=$PWD/dist \
-python build_audenic.py
+python build_audenic.py --doctor         # resolved paths, what is missing
+python build_audenic.py --fetch-tools    # downloads uber-apk-signer 1.3.0
 ```
+
+If the download is blocked (offline, restricted network), fetch
+`uber-apk-signer-1.3.0.jar` from its GitHub release and either drop it in
+`tools/` or point `AUDENIC_SIGNER` at it.
+
+On Windows, double-click **`build_audenic.bat`** — a thin wrapper around the same
+script, so there is exactly one build path. Drag an `.apk` onto it to check
+whether that APK carries the current Studio.
+
+### A stale Studio can no longer ship
+
+The build hashes every Studio file (25 — tests and docs are excluded), packages them, then re-reads
+`assets/transfer_web/index.html` **out of the APK** and compares it with the
+repo. A single changed byte aborts the build *before* signing:
+
+```
+[3b/5] Verifying the Studio inside the packaged APK...
+[verify] unsigned APK: …/audenic_unsigned.apk
+         studio files : 25 expected, 25 found
+         index.html   : 029a05c3e11e9058 (repo 029a05c3e11e9058)
+         result       : OK — APK ships the current Studio
+```
+
+The signed artifact is verified again and printed with its SHA-256. Audit an APK
+you already have:
+
+```bash
+python build_audenic.py --verify Audenic.apk
+```
+
+`0` = current Studio · `1` = stale or incomplete · `3` = the build aborted.
+
+`--no-sign` packages and verifies without signing — use it when you sign with
+your own keystore or on a different machine.
+
+### Paths
+
+| Variable | Default | What it points at |
+| --- | --- | --- |
+| `AUDENIC_ROOT` | this repo (or `Desktop\LARK`) | working root for the build |
+| `AUDENIC_SOURCE_APK` | `<root>/Lark_Player.zip` | APK being re-skinned |
+| `AUDENIC_WEB_DIR` | **`./assets/transfer_web`** | the Studio that gets embedded |
+| `AUDENIC_DEX_DIR` | `<root>/dex_out` | patched `classes4/5.dex` |
+| `AUDENIC_OUT` | `<root>/dist` | signed output |
+| `AUDENIC_JAVA`, `AUDENIC_SIGNER` | auto-detected | JDK, signer jar |
 
 `AUDENIC_WEB_DIR` defaults to **this repo's** `assets/transfer_web`, so a rebuild
-cannot ship a stale Studio from a Desktop folder. The script fails with a
-readable checklist if the source APK, signer or JDK is missing.
+cannot pick up a stale copy from a Desktop folder.
 
-The build patches 1,600+ ARSC strings, the five nav labels, launcher/splash
+### Build in the cloud (no local JDK)
+
+`.github/workflows/build-apk.yml` is a manual workflow: give it a direct download
+URL for a source APK (your current `Audenic.apk`, or `Lark_Player.zip`) and it
+builds, verifies and uploads `audenic-apk` as a run artifact with a
+`SHA256SUMS.txt`. Launcher and notification art come from the source APK you
+provide, so pass a build that already carries the Audenic branding if you want
+it kept.
+
+The build patches 1,600+ ARSC strings, the nav labels, launcher/splash
 drawables, notification icons, the header Lottie, `classes4.dex`/`classes5.dex`,
 and every file under `assets/transfer_web/`, then zip-aligns and signs v2.
 
@@ -159,8 +212,9 @@ and every file under `assets/transfer_web/`, then zip-aligns and signs v2.
 ## Tests
 
 ```bash
-node assets/transfer_web/core.test.mjs     # 19 checks
-python -m py_compile gemini_companion.py
+node assets/transfer_web/core.test.mjs     # 22 checks — parsing, exports, branding
+python3 tests/build_verify_test.py         # 6 checks — the APK/Studio guard
+python -m py_compile gemini_companion.py build_audenic.py
 ```
 
 The Studio's parsing layer (LRC timestamps, JSON extraction from wrapped model
@@ -194,6 +248,8 @@ and error notices.
   Prefer a device key if you have not configured cleartext.
 
 ## License & credits
+
+**Made by Mwijay.**
 
 Personal rebuild of a native player, for high-fidelity local audio.
 AI inference by Google Gemini and Groq. Rebranding work packaged with apktool and

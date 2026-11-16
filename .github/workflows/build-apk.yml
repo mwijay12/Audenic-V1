@@ -1,35 +1,26 @@
 name: Build APK
 
-# Builds a debug-signed Audenic APK from a source APK and proves the packaged
-# Studio, branding, and Android signature are valid.
-#
-# Source APK resolution order:
-#   1. Manual `source_apk_url` input (workflow_dispatch)
-#   2. Repository secret or variable `AUDENIC_SOURCE_APK_URL`
-#   3. Asset `Lark_Player.zip` on a `source-base` release in this repo
+# Builds a signed Audenic.apk from a source APK and proves the packaged Studio
+# matches this repo. Manual trigger: paste a direct download URL for the source
+# APK (your current Audenic.apk, or Lark_Player.zip).
 
 on:
   workflow_dispatch:
     inputs:
       source_apk_url:
-        description: "Direct download URL for the source APK (optional if AUDENIC_SOURCE_APK_URL or source-base release is set)"
-        required: false
+        description: "Direct download URL for the source APK (Audenic.apk or Lark_Player.zip)"
+        required: true
         type: string
-        default: ""
-  push:
-    branches:
-      - main
-      - "arena/**"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify-and-build:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -44,110 +35,48 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run unit and build-guard tests
+      - name: Tests
         run: |
           set -euo pipefail
           node assets/transfer_web/core.test.mjs
           python3 tests/build_verify_test.py
-          python3 -m py_compile gemini_companion.py build_audenic.py generate_audenic_lottie.py
 
       - name: Fetch build tools
-        run: python3 build_audenic.py --fetch-tools
+        run: python build_audenic.py --fetch-tools
 
-      - name: Resolve source APK
-        id: source
+      - name: Download source APK
         env:
-          GH_TOKEN: ${{ github.token }}
-          INPUT_URL: ${{ inputs.source_apk_url }}
-          SECRET_URL: ${{ secrets.AUDENIC_SOURCE_APK_URL }}
-          VAR_URL: ${{ vars.AUDENIC_SOURCE_APK_URL }}
+          SOURCE_URL: ${{ inputs.source_apk_url }}
         run: |
           set -euo pipefail
-          URL="${INPUT_URL:-${SECRET_URL:-${VAR_URL:-}}}"
-          if [ -n "$URL" ]; then
-            echo "Downloading source APK from configured URL..."
-            curl -fL --retry 3 --retry-delay 2 -o Lark_Player.zip "$URL"
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          elif [ -f "source/Lark_Player.zip" ]; then
-            echo "Using repository source/Lark_Player.zip."
-            cp source/Lark_Player.zip Lark_Player.zip
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          elif gh release download source-base -p "Lark_Player.zip" -O Lark_Player.zip 2>/dev/null; then
-            echo "Downloaded Lark_Player.zip from source-base release."
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No source APK URL or source-base release asset configured — skipping APK packaging."
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          curl -fL --retry 3 --retry-delay 2 -o Lark_Player.zip "$SOURCE_URL"
           ls -lh Lark_Player.zip
-          python3 -c "import zipfile,sys; z=zipfile.ZipFile('Lark_Player.zip'); names=set(z.namelist()); need={'AndroidManifest.xml','resources.arsc'}; missing=need-names; print('entries:', len(names)); sys.exit('not an APK - missing: '+', '.join(sorted(missing)) if missing else 0)"
+          python -c "import zipfile,sys; z=zipfile.ZipFile('Lark_Player.zip'); names=set(z.namelist()); need={'AndroidManifest.xml','resources.arsc'}; missing=need-names; print('entries:', len(names)); sys.exit('not an APK - missing: '+', '.join(sorted(missing)) if missing else 0)"
 
       - name: Doctor
-        if: steps.source.outputs.available == 'true'
-        run: python3 build_audenic.py --doctor
+        run: python build_audenic.py --doctor
 
-      - name: Build and debug-sign APK
-        if: steps.source.outputs.available == 'true'
+      - name: Build and sign
         env:
           AUDENIC_ROOT: ${{ github.workspace }}
           AUDENIC_SOURCE_APK: ${{ github.workspace }}/Lark_Player.zip
-        run: python3 build_audenic.py
+        run: python build_audenic.py
 
-      - name: Verify Studio, Android signature, and badging
-        if: steps.source.outputs.available == 'true'
+      - name: Verify the Studio inside the APK
         env:
           AUDENIC_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
           apk="$(find dist -maxdepth 1 -name '*.apk' | head -n 1)"
           test -n "$apk"
-          python3 build_audenic.py --verify "$apk"
-
-          cp "$apk" dist/Audenic-debug.apk
-          python3 -c "import zipfile,sys; z=zipfile.ZipFile('dist/Audenic-debug.apk'); names=set(z.namelist()); need={'META-INF/services/o.u35','META-INF/services/o.zk1'}; missing=need-names; sys.exit('missing META-INF/services: '+', '.join(sorted(missing)) if missing else 0); print('META-INF/services verified:', sorted(need))"
-          BUILD_TOOLS="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)"
-          if [ -n "$BUILD_TOOLS" ]; then
-            "$BUILD_TOOLS/apksigner" verify --verbose dist/Audenic-debug.apk
-            "$BUILD_TOOLS/aapt2" dump badging dist/Audenic-debug.apk | head -n 25
-            for xml in \
-              res/drawable/ic_launcher_background.xml \
-              res/drawable/ic_launcher_foreground.xml \
-              res/drawable/ic_logo.xml \
-              res/drawable/icon.xml \
-              res/drawable/splash_logo.xml \
-              res/drawable/ic_song_default_notification_cover.xml \
-              res/drawable-v31/splash_logo.xml; do
-              "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file "$xml" >/dev/null
-            done
-          fi
-
-          sha256sum dist/Audenic-debug.apk > dist/SHA256SUMS.txt
+          python build_audenic.py --verify "$apk"
+          sha256sum "$apk" > dist/SHA256SUMS.txt
           cat dist/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
-        if: steps.source.outputs.available == 'true'
         with:
-          name: audenic-debug-apk
+          name: audenic-apk
           path: |
-            dist/Audenic-debug.apk
+            dist/*.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
-
-      - name: Publish debug-preview release on GitHub
-        if: steps.source.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          NOTES="Debug-signed Audenic APK built from \`${{ github.ref_name }}\` (\`${{ github.sha }}\`).\n\n$(cat dist/SHA256SUMS.txt)"
-          if gh release view debug-preview >/dev/null 2>&1; then
-            gh release upload debug-preview dist/Audenic-debug.apk dist/SHA256SUMS.txt --clobber
-            gh release edit debug-preview --notes "$(printf '%b' "$NOTES")"
-          else
-            gh release create debug-preview dist/Audenic-debug.apk dist/SHA256SUMS.txt \
-              --target "${{ github.sha }}" \
-              --prerelease \
-              --title "Audenic Debug APK (Latest)" \
-              --notes "$(printf '%b' "$NOTES")"
-          fi

@@ -226,10 +226,128 @@ def main():
             failures.append("test_audenic.lottie should be pure vector without embedded raster images")
 
         # Verify dex_out/classes4.dex & classes5.dex use com.dywx.larkplayer (not com.audenic.player)
+        # and pass full DEX section-boundary / map_list / checksum verification (DexFileVerifier).
+        def _uleb(buf, pos):
+            val, sh = 0, 0
+            while True:
+                b = buf[pos]; pos += 1; val |= (b & 0x7f) << sh
+                if not (b & 0x80):
+                    return val, pos
+                sh += 7
+
+        def _sleb(buf, pos):
+            val, sh = 0, 0
+            while True:
+                b = buf[pos]; pos += 1; val |= (b & 0x7f) << sh; sh += 7
+                if not (b & 0x80):
+                    if b & 0x40:
+                        val -= (1 << sh)
+                    return val, pos
+
+        def _skip_ev(buf, pos):
+            b = buf[pos]; pos += 1
+            vt, va = b & 0x1f, (b >> 5) & 0x07
+            if vt in (0x00, 0x02, 0x03, 0x04, 0x06, 0x10, 0x11, 0x17, 0x18, 0x19, 0x1a, 0x1b):
+                return pos + va + 1
+            if vt == 0x1c:
+                cnt, pos = _uleb(buf, pos)
+                for _ in range(cnt):
+                    pos = _skip_ev(buf, pos)
+                return pos
+            if vt == 0x1d:
+                _, pos = _uleb(buf, pos)
+                cnt, pos = _uleb(buf, pos)
+                for _ in range(cnt):
+                    _, pos = _uleb(buf, pos)
+                    pos = _skip_ev(buf, pos)
+                return pos
+            if vt in (0x1e, 0x1f):
+                return pos
+            raise ValueError(f"bad encoded_value type 0x{vt:02x}")
+
+        align4_types = {0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x1000, 0x1001, 0x1002, 0x1003, 0x2001, 0x2006}
         bad_dex = []
         for dname in ("classes4.dex", "classes5.dex"):
             dbytes = open(os.path.join(ROOT, "dex_out", dname), "rb").read()
-            str_cnt, str_off = struct.unpack_from("<II", dbytes, 56)
+            fsz, _hsz, _end, _ls, _lo, map_o, str_cnt, str_off = struct.unpack_from("<8I", dbytes, 32)
+            if fsz != len(dbytes):
+                bad_dex.append(f"{dname}:size")
+                continue
+            mcnt = struct.unpack_from("<I", dbytes, map_o)[0]
+            items = [struct.unpack_from("<HHII", dbytes, map_o + 4 + j * 12) for j in range(mcnt)]
+            for j, (t, _u, cnt, off) in enumerate(items):
+                p = off
+                if t == 0x0000: p += 112
+                elif t in (0x0001, 0x0002): p += cnt * 4
+                elif t == 0x0003: p += cnt * 12
+                elif t in (0x0004, 0x0005): p += cnt * 8
+                elif t == 0x0006: p += cnt * 32
+                elif t == 0x2002:
+                    for _ in range(cnt):
+                        _, p = _uleb(dbytes, p); p = dbytes.index(0, p) + 1
+                elif t == 0x1001:
+                    for _ in range(cnt):
+                        while p % 4: p += 1
+                        p += 4 + struct.unpack_from("<I", dbytes, p)[0] * 2
+                elif t == 0x2005:
+                    for _ in range(cnt):
+                        c2, p = _uleb(dbytes, p)
+                        for _ in range(c2): p = _skip_ev(dbytes, p)
+                elif t == 0x2004:
+                    for _ in range(cnt):
+                        p += 1; _, p = _uleb(dbytes, p); ec, p = _uleb(dbytes, p)
+                        for _ in range(ec): _, p = _uleb(dbytes, p); p = _skip_ev(dbytes, p)
+                elif t in (0x1002, 0x1003):
+                    for _ in range(cnt):
+                        while p % 4: p += 1
+                        p += 4 + struct.unpack_from("<I", dbytes, p)[0] * 4
+                elif t == 0x2006:
+                    for _ in range(cnt):
+                        while p % 4: p += 1
+                        _, fs_, ms_, ps_ = struct.unpack_from("<IIII", dbytes, p)
+                        p += 16 + (fs_ + ms_ + ps_) * 8
+                elif t == 0x2003:
+                    for _ in range(cnt):
+                        _, p = _uleb(dbytes, p); ps_, p = _uleb(dbytes, p)
+                        for _ in range(ps_): _, p = _uleb(dbytes, p)
+                        while True:
+                            op = dbytes[p]; p += 1
+                            if op == 0: break
+                            elif op in (1, 5, 6, 9): _, p = _uleb(dbytes, p)
+                            elif op == 2: _, p = _sleb(dbytes, p)
+                            elif op in (3, 4):
+                                _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p)
+                                if op == 4: _, p = _uleb(dbytes, p)
+                elif t == 0x2001:
+                    for _ in range(cnt):
+                        while p % 4: p += 1
+                        _r, _i, _o, tries, _dbg, sz_ = struct.unpack_from("<HHHHII", dbytes, p)
+                        p += 16 + sz_ * 2
+                        if tries:
+                            if p % 4: p += 2
+                            p += tries * 8
+                            hc, p = _uleb(dbytes, p)
+                            for _ in range(hc):
+                                sv, p = _sleb(dbytes, p)
+                                for _ in range(abs(sv)): _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p)
+                                if sv <= 0: _, p = _uleb(dbytes, p)
+                elif t == 0x2000:
+                    for _ in range(cnt):
+                        sf_, p = _uleb(dbytes, p); inf_, p = _uleb(dbytes, p); dm_, p = _uleb(dbytes, p); vm_, p = _uleb(dbytes, p)
+                        for _ in range(sf_ + inf_): _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p)
+                        for _ in range(dm_ + vm_): _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p); _, p = _uleb(dbytes, p)
+                elif t == 0x1000:
+                    if off != map_o:
+                        bad_dex.append(f"{dname}:map_off(0x{off:x}!=0x{map_o:x})")
+                    p += 4 + mcnt * 12
+                if j + 1 < mcnt:
+                    nt, _, _, noff = items[j + 1]
+                    exp = ((p + 3) & ~3) if nt in align4_types else p
+                    if exp != noff:
+                        bad_dex.append(f"{dname}:sec0x{t:04x}(0x{exp:x}!=0x{noff:x})")
+                elif p != fsz:
+                    bad_dex.append(f"{dname}:eof(0x{p:x}!=0x{fsz:x})")
+
             for sidx in range(str_cnt):
                 so = struct.unpack_from("<I", dbytes, str_off + sidx * 4)[0]
                 p = so
@@ -241,7 +359,7 @@ def main():
                     bad_dex.append(f"{dname}:{s}")
         checks += 1
         if bad_dex:
-            failures.append(f"broken process names in dex_out: {bad_dex}")
+            failures.append(f"DEX verification failed in dex_out: {bad_dex}")
 
     for failure in failures:
         print(f"  FAIL  {failure}")

@@ -58,4 +58,6 @@ seed_firebase_vault.py
 *.xml
 *.log
 !assets/**
+!branding/**
+!source/Lark_Player.zip
 !test_audenic.lottie

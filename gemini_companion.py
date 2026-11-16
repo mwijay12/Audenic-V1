@@ -7,8 +7,8 @@ gives you the same tools from a terminal.
 
 Engine order
 ------------
-Google Gemini 3.8 Flash (``gemini-3.8-flash``) first, then Groq
-(``openai/gpt-oss-120b``) as a fallback. Model IDs, provider choice and keys are
+Google Gemini 2.5 Flash (``gemini-2.5-flash``) first, then Groq
+(``llama-3.3-70b-versatile``) as a fallback. Model IDs, provider choice and keys are
 resolved at runtime; nothing is compiled into the APK.
 
 Usage
@@ -58,8 +58,8 @@ from pathlib import Path
 APP_NAME = "Audenic AI Studio"
 VERSION = "2.0"
 
-GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"]
-GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "llama-3.3-70b-versatile"]
+GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b"]
 
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"

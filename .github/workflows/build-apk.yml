@@ -116,6 +116,7 @@ jobs:
               res/drawable/ic_logo.xml \
               res/drawable/icon.xml \
               res/drawable/splash_logo.xml \
+              res/drawable/ic_notification.xml \
               res/drawable/ic_song_default_notification_cover.xml \
               res/drawable-v31/splash_logo.xml; do
               "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file "$xml" >/dev/null

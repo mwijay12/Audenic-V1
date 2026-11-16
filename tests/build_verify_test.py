@@ -153,12 +153,17 @@ def main():
         ):
             failures.append(f"ARSC rebuild failed: {decoded}")
 
-        # All 18 branding assets must exist in the repo and have valid AXML/resource refs
+        # All 20 branding assets must exist in the repo and have valid AXML/resource refs
         branding = build_audenic._resolve_branding_assets()
         missing_branding = [k for k, p in branding.items() if not os.path.isfile(p)]
         checks += 1
-        if missing_branding:
+        if len(branding) < 20 or missing_branding:
             failures.append(f"missing branding assets: {missing_branding}")
+
+        # TAB_PATCHES must not map Artists -> Setting (Setting tab between Library and Albums was removed)
+        checks += 1
+        if 10673 in build_audenic.TAB_PATCHES:
+            failures.append("TAB_PATCHES should not remap Artists (10673) to Setting")
 
         # Verify compiled AXML vector drawables & valid resource references
         bad_axml = []
@@ -357,6 +362,12 @@ def main():
                 s = dbytes[p : dbytes.index(0, p)].decode("utf-8", "replace")
                 if s in ("com.audenic.player:playback", "com.audenic.player:splash"):
                     bad_dex.append(f"{dname}:{s}")
+
+        # Verify MainFragment.onActivityCreated skips the Setting/Artists tab
+        m4_bytes = open(os.path.join(ROOT, "dex_out", "classes4.dex"), "rb").read()
+        if struct.unpack_from("<H", m4_bytes, 0x3615bc + 16 + 354 * 2)[0] != 0x1e28:
+            bad_dex.append("classes4.dex:MainFragment.onActivityCreated_tab_skip")
+
         checks += 1
         if bad_dex:
             failures.append(f"DEX verification failed in dex_out: {bad_dex}")

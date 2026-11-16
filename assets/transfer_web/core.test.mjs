@@ -128,30 +128,6 @@ test('keeps prose when there are no tracks', () => {
   assert.equal(result.description, 'Just a paragraph.');
 });
 
-console.log('\n equalizer');
-test('normalises band keys from Hz labels', () => {
-  const eq = Core.normaliseEQ({
-    eqBandsDb: { '60Hz': 4, '230Hz': 2, '910Hz': -1, '3.6kHz': 3, '14kHz': 5 },
-    bassBoostPct: 45,
-    reverbPreset: 'Hall'
-  });
-  assert.deepEqual(eq.bands, { '60': 4, '230': 2, '910': -1, '36k': 3, '14k': 5 });
-  assert.equal(eq.bassBoost, '45%');
-  assert.equal(eq.reverb, 'Hall');
-});
-test('normalises short band keys and clamps', () => {
-  const eq = Core.normaliseEQ({ bands: { '60': 40, '230': -30 }, bassBoost: '35%' });
-  assert.equal(eq.bands['60'], 10);
-  assert.equal(eq.bands['230'], -10);
-  assert.equal(eq.bassBoost, '35%');
-});
-test('bandText is human readable', () => {
-  assert.equal(
-    Core.bandText({ '60': 4, '230': 2, '910': -1, '36k': 3, '14k': 5 }),
-    '60Hz +4dB · 230Hz +2dB · 910Hz -1dB · 3.6kHz +3dB · 14kHz +5dB'
-  );
-});
-
 console.log('\n playlist export');
 test('writes a valid m3u with durations', () => {
   const text = Core.m3uFrom({
@@ -167,7 +143,7 @@ test('writes a valid m3u with durations', () => {
   assert.match(text, /#EXTINF:-1,Two\nTwo\.mp3/);
 });
 
-console.log('\n branding');
+console.log('\n branding & models');
 test('credits Mwijay in the document, the footer and the Engine tab', () => {
   assert.match(html, /<meta name="author" content="Mwijay">/);
   assert.match(html, /<title>Audenic AI Studio · by Mwijay<\/title>/);
@@ -176,8 +152,14 @@ test('credits Mwijay in the document, the footer and the Engine tab', () => {
 });
 test('keeps the engine and privacy line in the footer', () => {
   const foot = html.slice(html.indexOf('<footer class="foot">'), html.indexOf('</footer>'));
-  assert.match(foot, /Gemini 3.8 Flash → Groq/);
+  assert.match(foot, /Gemini 2\.5 Flash → Groq/);
   assert.match(foot, /Keys stay on your device/);
+});
+test('removes the non-working equalizer tab and uses live model IDs', () => {
+  assert.doesNotMatch(html, /id="tab-eq"|id="pane-eq"/);
+  assert.match(html, /gemini-2\.5-flash/);
+  assert.match(html, /llama-3\.3-70b-versatile/);
+  assert.doesNotMatch(html, /gemini-3\.8-flash|qwen\/qwen3\.8-27b/);
 });
 test('ships no leftover build placeholders', () => {
   assert.doesNotMatch(html, /\bTODO\b|\bFIXME\b|localhost:3000/);

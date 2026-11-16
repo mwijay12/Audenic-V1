@@ -170,10 +170,30 @@ def main():
             if t != 0x0003 or sz != len(d):
                 bad_axml.append(k)
                 continue
+            # Check string pool + resource map for fillAlpha attribute ID (0x010104cc)
+            _st, sh, ss, sc, _stc, fl, str_s, _sty_s = struct.unpack_from("<HHIIIIII", d, h)
+            soffs = struct.unpack_from(f"<{sc}I", d, h + sh)
+            sp_strs = []
+            for sidx in range(sc):
+                sp_pos = h + str_s + soffs[sidx]
+                if fl & 0x100:
+                    cl = d[sp_pos]; sp_pos += 1
+                    if cl & 0x80: cl = ((cl & 0x7f) << 8) | d[sp_pos]; sp_pos += 1
+                    bl = d[sp_pos]; sp_pos += 1
+                    if bl & 0x80: bl = ((bl & 0x7f) << 8) | d[sp_pos]; sp_pos += 1
+                    sp_strs.append(d[sp_pos:sp_pos + bl].decode("utf-8", "replace"))
+                else:
+                    cl = struct.unpack_from("<H", d, sp_pos)[0]; sp_pos += 2
+                    sp_strs.append(d[sp_pos:sp_pos + cl * 2].decode("utf-16-le", "replace"))
             off = h
             while off < len(d):
                 ct, ch, cs = struct.unpack_from("<HHI", d, off)
-                if ct == 0x0102:
+                if ct == 0x0180:
+                    rids = struct.unpack_from(f"<{(cs - 8) // 4}I", d, off + 8)
+                    for idx, rid in enumerate(rids):
+                        if idx < len(sp_strs) and sp_strs[idx] == "fillAlpha" and rid != 0x010104cc:
+                            bad_axml.append(f"{k}(fillAlpha=0x{rid:x})")
+                elif ct == 0x0102:
                     _, _, as_off, as_sz, ac, *_ = struct.unpack_from("<IIHHHHHH", d, off + 16)
                     for idx in range(ac):
                         a_off = off + 16 + as_off + idx * as_sz
@@ -184,6 +204,18 @@ def main():
         checks += 1
         if bad_axml:
             failures.append(f"invalid branding AXML: {bad_axml}")
+
+        # Verify META-INF service files are preserved while v1 signature entries are skipped
+        checks += 1
+        if (
+            not build_audenic._is_apk_signature_entry("META-INF/MANIFEST.MF")
+            or not build_audenic._is_apk_signature_entry("META-INF/EDITOR.SF")
+            or not build_audenic._is_apk_signature_entry("META-INF/EDITOR.RSA")
+            or build_audenic._is_apk_signature_entry("META-INF/services/o.u35")
+            or build_audenic._is_apk_signature_entry("META-INF/services/o.zk1")
+            or build_audenic._is_apk_signature_entry("META-INF/com/pangle/global/pag-sdk/verification.properties")
+        ):
+            failures.append("_is_apk_signature_entry must strip only v1 signature files and keep META-INF/services/*")
 
         # Verify test_audenic.lottie is pure vector (no raster data:image URIs)
         lottie_path = os.path.join(ROOT, "test_audenic.lottie")

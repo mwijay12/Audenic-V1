@@ -105,13 +105,21 @@ jobs:
           python3 build_audenic.py --verify "$apk"
 
           cp "$apk" dist/Audenic-debug.apk
+          python3 -c "import zipfile,sys; z=zipfile.ZipFile('dist/Audenic-debug.apk'); names=set(z.namelist()); need={'META-INF/services/o.u35','META-INF/services/o.zk1'}; missing=need-names; sys.exit('missing META-INF/services: '+', '.join(sorted(missing)) if missing else 0); print('META-INF/services verified:', sorted(need))"
           BUILD_TOOLS="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)"
           if [ -n "$BUILD_TOOLS" ]; then
             "$BUILD_TOOLS/apksigner" verify --verbose dist/Audenic-debug.apk
             "$BUILD_TOOLS/aapt2" dump badging dist/Audenic-debug.apk | head -n 25
-            "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file res/drawable/ic_logo.xml
-            "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file res/drawable/splash_logo.xml
-            "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file res/drawable/ic_song_default_notification_cover.xml
+            for xml in \
+              res/drawable/ic_launcher_background.xml \
+              res/drawable/ic_launcher_foreground.xml \
+              res/drawable/ic_logo.xml \
+              res/drawable/icon.xml \
+              res/drawable/splash_logo.xml \
+              res/drawable/ic_song_default_notification_cover.xml \
+              res/drawable-v31/splash_logo.xml; do
+              "$BUILD_TOOLS/aapt2" dump xmltree dist/Audenic-debug.apk --file "$xml" >/dev/null
+            done
           fi
 
           sha256sum dist/Audenic-debug.apk > dist/SHA256SUMS.txt

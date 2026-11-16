@@ -328,6 +328,17 @@ def patch_resources_arsc(arsc_data):
     return bytes(out), patched_count, tab_patched_count
 
 
+def _is_apk_signature_entry(name):
+    """Return True only for APK v1 signature files that must be regenerated on signing."""
+    if not name.startswith("META-INF/"):
+        return False
+    rest = name[len("META-INF/") :]
+    if "/" in rest:
+        return False
+    upper = rest.upper()
+    return upper == "MANIFEST.MF" or upper.endswith((".SF", ".RSA", ".DSA", ".EC", ".SIG"))
+
+
 def _resolve_branding_assets():
     """Prefer local apktool output when present, otherwise use tracked branding/ assets."""
     def pick(*candidates):
@@ -520,7 +531,7 @@ def main():
     stored_entries = set()
     with zipfile.ZipFile(LARK_ZIP, "r") as z:
         for item in z.infolist():
-            if item.filename.startswith("META-INF/"):
+            if _is_apk_signature_entry(item.filename):
                 continue
             files_to_copy[item.filename] = z.read(item.filename)
             if item.compress_type == zipfile.ZIP_STORED:

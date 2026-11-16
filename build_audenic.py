@@ -242,7 +242,6 @@ TAB_PATCHES = {
     11502: ("Songs", "Home"),
     11326: ("Playlists", "Explore"),
     10975: ("Folders", "Library"),
-    10673: ("Artists", "Setting"),
     11337: ("Premium", "AI Studio"),
     10718: ("Backup & restore", "Cloud AI Vault"),
 }
@@ -375,6 +374,14 @@ def _resolve_branding_assets():
         "res/drawable-xhdpi-v4/ic_stat_larkplayer.png": pick(
             os.path.join(ROOT, "ic_stat_audenic.png"),
             os.path.join(BRANDING_DIR, "res", "drawable-xhdpi-v4", "ic_stat_larkplayer.png"),
+        ),
+        "res/drawable-xxhdpi-v4/ic_notification_default_cover.png": pick(
+            os.path.join(WORK_BUILD, "res", "drawable-xxhdpi-v4", "ic_notification_default_cover.png"),
+            os.path.join(BRANDING_DIR, "res", "drawable-xxhdpi-v4", "ic_notification_default_cover.png"),
+        ),
+        "res/drawable/ic_notification.xml": pick(
+            os.path.join(WORK_BUILD, "res", "drawable", "ic_notification.xml"),
+            os.path.join(BRANDING_DIR, "res", "drawable", "ic_notification.xml"),
         ),
         "res/drawable/ic_song_default_notification_cover.xml": pick(
             os.path.join(WORK_BUILD, "res", "drawable", "ic_song_default_notification_cover.xml"),

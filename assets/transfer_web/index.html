@@ -856,89 +856,28 @@ details.raw-details[open] summary::before{ content: "▾ "; }
   overflow-wrap: anywhere;
 }
 /* --------------------------------------------------------------------------
-   Equalizer
+   Setup banner (shown when no API key is configured yet)
    -------------------------------------------------------------------------- */
-.eq-chart{
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 20px;
-  padding: 16px 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,0) 70%);
-}
-.band{
+.setup-banner{
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--brand-line);
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
 }
-.band-val{
-  font-size: .72rem;
-  font-weight: 700;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
+.setup-banner[hidden]{ display: none; }
+.setup-banner-copy{
+  flex: 1 1 200px;
+  font-size: .78rem;
+  line-height: 1.45;
+  color: var(--text-2);
 }
-.band-track{
-  position: relative;
-  width: 100%;
-  max-width: 34px;
-  height: 132px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.015));
-  touch-action: none;
-  cursor: ns-resize;
-  -webkit-tap-highlight-color: transparent;
-}
-.band-track:hover{ border-color: var(--line-strong); }
-.band-track::before{
-  content: "";
-  position: absolute;
-  z-index: 0;
-  inset-inline: 3px;
-  top: 50%;
-  border-top: 1px solid rgba(255,255,255,.10);
-  pointer-events: none;
-}
-.band-fill{
-  position: absolute;
-  z-index: 1;
-  inset-inline: 3px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(95,227,230,.95), rgba(95,227,230,.28));
-  transition: top .22s var(--ease), height .22s var(--ease), background .22s ease;
-}
-.band-fill[data-sign="neg"]{
-  background: linear-gradient(180deg, rgba(139,147,255,.35), rgba(139,147,255,.9));
-}
-.band-thumb{
-  position: absolute;
-  z-index: 4;
-  inset-inline: 1px;
-  height: 5px;
-  margin-top: -2.5px;
-  border-radius: 3px;
-  background: #fff;
-  box-shadow: 0 0 0 2px rgba(7,8,12,.65), 0 0 14px rgba(95,227,230,.8);
-  transition: top .22s var(--ease);
-  pointer-events: none;
-}
-.band-track.is-dragging .band-thumb,
-.band-track.is-dragging .band-fill{ transition: none; }
-.band-val.is-zero{ color: var(--text-3); font-weight: 600; }
-.band-freq{
-  font-size: .68rem;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dsp-row{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.setup-banner-copy strong{ color: var(--text); font-weight: 600; }
 
 /* --------------------------------------------------------------------------
    Vault
@@ -1128,9 +1067,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
   /* desktop: tabs keep their natural width instead of stretching */
   .tab{ flex: 0 0 auto; padding: 9px 18px; font-size: .84rem; }
   .tabs{ gap: 8px; }
-  .eq-chart{ max-width: 520px; margin-inline: auto; }
-  .eq-chart + .hint{ max-width: 520px; margin-inline: auto; }
-  .band-track{ max-width: 40px; }
   .result-head{ align-items: center; }
   .karaoke-viewport{ height: 150px; }
   .k-line{ height: 50px; line-height: 50px; font-size: .86rem; }
@@ -1144,8 +1080,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
 @media (max-width: 360px){
   .brand-sub{ display: none; }
   .status-chip{ max-width: 40%; padding-inline: 9px; }
-  .eq-chart{ padding-inline: 4px; }
-  .band-track{ height: 112px; }
 }
 
 @media (prefers-reduced-motion: reduce){
@@ -1190,7 +1124,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
   <nav class="tabs" role="tablist" aria-label="AI Studio sections">
     <button class="tab" id="tab-lyrics" type="button" role="tab" aria-selected="true" aria-controls="pane-lyrics" tabindex="0" data-tab="lyrics">Lyrics</button>
     <button class="tab" id="tab-curator" type="button" role="tab" aria-selected="false" aria-controls="pane-curator" tabindex="-1" data-tab="curator">Curator</button>
-    <button class="tab" id="tab-eq" type="button" role="tab" aria-selected="false" aria-controls="pane-eq" tabindex="-1" data-tab="eq" aria-label="Acoustic equalizer">EQ</button>
     <button class="tab" id="tab-vault" type="button" role="tab" aria-selected="false" aria-controls="pane-vault" tabindex="-1" data-tab="vault">Engine</button>
   </nav>
 
@@ -1203,6 +1136,11 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
         <p class="eyebrow">Synchronized lyrics</p>
         <h2>Turn a track into timed LRC</h2>
         <p class="lede">Generates <strong>[mm:ss.xx]</strong> lines that scroll in time inside Audenic's karaoke view. Preview the timing here before you save.</p>
+
+        <div class="setup-banner" id="setup-banner-lyrics" hidden>
+          <div class="setup-banner-copy"><strong>Connect a free AI key</strong> to generate real lyrics — or tap <em>Preview sample output</em> below to test offline.</div>
+          <button class="btn-ghost setup-banner-btn" type="button">Add API key</button>
+        </div>
 
         <div class="field">
           <label class="field-label" for="song-input">Song and artist</label>
@@ -1277,6 +1215,11 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
         <h2>Describe a mood, get a setlist</h2>
         <p class="lede">Name the occasion, the tempo or the scripture. You get an ordered set with a reason for every pick, ready to export as <strong>.m3u</strong>.</p>
 
+        <div class="setup-banner" id="setup-banner-curator" hidden>
+          <div class="setup-banner-copy"><strong>Connect a free AI key</strong> to curate real playlists — or tap <em>Preview sample output</em> below to test offline.</div>
+          <button class="btn-ghost setup-banner-btn" type="button">Add API key</button>
+        </div>
+
         <div class="field">
           <label class="field-label" for="curator-input">Theme or feeling</label>
           <textarea class="textarea" id="curator-input" placeholder="e.g. Deep acoustic Swahili worship for a midnight prayer service" rows="3"></textarea>
@@ -1322,91 +1265,13 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     </section>
 
     <!-- ==================================================================
-         EQ
-         ================================================================== -->
-    <section class="panel" id="pane-eq" role="tabpanel" aria-labelledby="tab-eq" tabindex="0" hidden>
-      <div class="surface">
-        <p class="eyebrow">Acoustic DSP</p>
-        <h2>Match the curve to the record</h2>
-        <p class="lede">The five bands Audenic's native equalizer exposes. Drag to shape a curve, or let the engine propose gains for a sound.</p>
-
-        <div class="eq-chart" id="eq-chart" role="group" aria-label="Five band equalizer, -10 to +10 decibels">
-          <div class="band">
-            <span class="band-val" id="val-60">0 dB</span>
-            <div class="band-track" id="track-60" role="slider" tabindex="0" aria-label="60 Hz, sub-bass" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-60"></div><div class="band-thumb" id="thumb-60"></div></div>
-            <span class="band-freq">60 Hz</span>
-          </div>
-          <div class="band">
-            <span class="band-val" id="val-230">0 dB</span>
-            <div class="band-track" id="track-230" role="slider" tabindex="0" aria-label="230 Hz, bass" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-230"></div><div class="band-thumb" id="thumb-230"></div></div>
-            <span class="band-freq">230 Hz</span>
-          </div>
-          <div class="band">
-            <span class="band-val" id="val-910">0 dB</span>
-            <div class="band-track" id="track-910" role="slider" tabindex="0" aria-label="910 Hz, midrange" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-910"></div><div class="band-thumb" id="thumb-910"></div></div>
-            <span class="band-freq">910 Hz</span>
-          </div>
-          <div class="band">
-            <span class="band-val" id="val-36k">0 dB</span>
-            <div class="band-track" id="track-36k" role="slider" tabindex="0" aria-label="3.6 kilohertz, presence" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-36k"></div><div class="band-thumb" id="thumb-36k"></div></div>
-            <span class="band-freq">3.6 kHz</span>
-          </div>
-          <div class="band">
-            <span class="band-val" id="val-14k">0 dB</span>
-            <div class="band-track" id="track-14k" role="slider" tabindex="0" aria-label="14 kilohertz, air" aria-orientation="vertical" aria-valuemin="-10" aria-valuemax="10" aria-valuenow="0"><div class="band-fill" id="fill-14k"></div><div class="band-thumb" id="thumb-14k"></div></div>
-            <span class="band-freq">14 kHz</span>
-          </div>
-        </div>
-        <p class="hint" style="margin-top:8px">The faint line marks 0 dB. Drag a band, or focus one and use ↑ ↓ · press 0 to reset.</p>
-
-        <div class="chips" id="eq-presets">
-          <button class="chip" type="button" data-preset="worship" aria-pressed="false">Church worship</button>
-          <button class="chip" type="button" data-preset="bass" aria-pressed="false">Subwoofer</button>
-          <button class="chip" type="button" data-preset="vocal" aria-pressed="false">Clear vocal</button>
-          <button class="chip" type="button" data-preset="acoustic" aria-pressed="false">Acoustic</button>
-          <button class="chip" type="button" data-preset="flat" aria-pressed="false">Flat</button>
-        </div>
-
-        <div class="field">
-          <label class="field-label" for="eq-input">Describe the sound</label>
-          <input class="input" id="eq-input" type="text" placeholder="e.g. Warm tape, punchy kick" autocomplete="off">
-        </div>
-
-        <div class="actions-row">
-          <button class="btn-primary" id="btn-eq" type="button">
-            <span class="btn-label">Suggest gains</span>
-          </button>
-          <button class="btn-link" id="eq-sample-btn" type="button">Preview sample output</button>
-        </div>
-
-        <div class="result" id="eq-result" hidden>
-          <div class="result-head">
-            <div class="result-title-wrap">
-              <span class="pill" id="eq-badge">Engine</span>
-              <h3 class="result-title" id="eq-title">Suggested curve</h3>
-            </div>
-            <div class="result-actions">
-              <button class="btn-ghost" id="eq-copy" type="button">Copy profile</button>
-            </div>
-          </div>
-          <p class="result-meta" id="eq-meta"></p>
-          <div id="eq-notice"></div>
-          <div id="eq-body">
-            <p class="setlist-desc" id="eq-summary"></p>
-            <div class="dsp-row" id="eq-dsp"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================================================================
          Engine / Vault
          ================================================================== -->
     <section class="panel" id="pane-vault" role="tabpanel" aria-labelledby="tab-vault" tabindex="0" hidden>
       <div class="surface">
         <p class="eyebrow">Engine and keys</p>
         <h2>Connect an AI engine</h2>
-        <p class="lede">The Studio can talk to Google Gemini, Groq, or a local companion daemon. Keys entered here stay on this device.</p>
+        <p class="lede">Paste a free Google Gemini or Groq API key to run Lyrics and Curator directly from your phone. Keys stay saved on this device only.</p>
 
         <div class="field">
           <label class="field-label" for="provider-select">Preferred engine</label>
@@ -1419,27 +1284,12 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
 
         <div class="vault-block">
           <div class="vault-head">
-            <div class="vault-name">Local companion</div>
-            <span class="vault-state" id="companion-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="companion-label">Checking</span></span>
-          </div>
-          <div class="vault-sub">Keeps keys server-side and proxies every request.</div>
-          <div class="companion-card" style="margin-top:12px">
-            <div class="companion-main">
-              <div class="companion-title" id="companion-title">127.0.0.1:8080</div>
-              <div class="companion-sub" id="companion-sub">Not reached yet. Start it with <code>python gemini_companion.py --serve</code>.</div>
-            </div>
-            <button class="btn-ghost" id="btn-recheck" type="button">Recheck</button>
-          </div>
-        </div>
-
-        <div class="vault-block">
-          <div class="vault-head">
             <div class="vault-name">Google Gemini</div>
             <span class="vault-state" id="gemini-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="gemini-label">No key</span></span>
           </div>
-          <div class="vault-sub">Primary reasoning engine · <span class="mono">gemini-3.8-flash</span></div>
+          <div class="vault-sub">Primary engine · <span class="mono">gemini-2.5-flash</span> · free key at <span class="mono">aistudio.google.com</span></div>
           <div class="key-row">
-            <input class="input" id="key-gemini" type="password" placeholder="Paste a Gemini API key" autocomplete="off" spellcheck="false" aria-label="Gemini API key">
+            <input class="input" id="key-gemini" type="password" placeholder="Paste Gemini key (AIza...)" autocomplete="off" spellcheck="false" aria-label="Gemini API key">
             <div class="key-actions">
               <button class="btn-ghost" id="btn-save-gemini" type="button">Save key</button>
               <button class="btn-ghost" id="btn-clear-gemini" type="button" aria-label="Remove saved Gemini key">Remove</button>
@@ -1452,9 +1302,9 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
             <div class="vault-name">Groq</div>
             <span class="vault-state" id="groq-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="groq-label">No key</span></span>
           </div>
-          <div class="vault-sub">Fast fallback · <span class="mono">openai/gpt-oss-120b</span></div>
+          <div class="vault-sub">Fast fallback · <span class="mono">llama-3.3-70b-versatile</span> · free key at <span class="mono">console.groq.com</span></div>
           <div class="key-row">
-            <input class="input" id="key-groq" type="password" placeholder="Paste a Groq API key" autocomplete="off" spellcheck="false" aria-label="Groq API key">
+            <input class="input" id="key-groq" type="password" placeholder="Paste Groq key (gsk_...)" autocomplete="off" spellcheck="false" aria-label="Groq API key">
             <div class="key-actions">
               <button class="btn-ghost" id="btn-save-groq" type="button">Save key</button>
               <button class="btn-ghost" id="btn-clear-groq" type="button" aria-label="Remove saved Groq key">Remove</button>
@@ -1480,9 +1330,26 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
           <div class="lrc" id="diag-output" style="max-height:none"></div>
         </div>
 
-        <p class="hint" style="margin-top:22px">
+        <details class="raw-details" style="margin-top:22px">
+          <summary>Desktop companion proxy (optional)</summary>
+          <div class="vault-block" style="margin-top:12px; padding-top:0; border-top:0">
+            <div class="vault-head">
+              <div class="vault-name">Local companion</div>
+              <span class="vault-state" id="companion-state" data-on="false"><span class="dot" aria-hidden="true"></span><span id="companion-label">Checking</span></span>
+            </div>
+            <div class="vault-sub">Optional PC proxy if you run <span class="mono">gemini_companion.py --serve</span>.</div>
+            <div class="companion-card" style="margin-top:12px">
+              <div class="companion-main">
+                <div class="companion-title" id="companion-title">127.0.0.1:8080</div>
+                <div class="companion-sub" id="companion-sub">Not running — use a device key above instead.</div>
+              </div>
+              <button class="btn-ghost" id="btn-recheck" type="button">Recheck</button>
+            </div>
+          </div>
+        </details>
+
+        <p class="hint" style="margin-top:20px">
           Keys are stored with <span class="mono">localStorage</span> on this device only — never bundled in the APK.
-          Anyone with the unlocked device can read them, so prefer the companion when you can.
         </p>
 
         <div class="about">
@@ -1499,7 +1366,7 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     <p class="foot-sub">
       <span>Audenic AI Studio</span>
       <span class="foot-sep" aria-hidden="true">·</span>
-      <span>Gemini 3.8 Flash → Groq</span>
+      <span>Gemini 2.5 Flash → Groq</span>
       <span class="foot-sep" aria-hidden="true">·</span>
       <span>Keys stay on your device</span>
     </p>
@@ -1719,74 +1586,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     return out;
   }
 
-  var BAND_KEYS = ['60', '230', '910', '36k', '14k'];
-  var BAND_ALIASES = {
-    '60': /(^|\D)60(\D|$)/,
-    '230': /230/,
-    '910': /910/,
-    '36k': /(3\.?6\s*k|3600)/i,
-    '14k': /(14\s*k|14000)/i
-  };
-
-  /** Normalise EQ replies from any of the shapes the model might emit. */
-  function normaliseEQ(data) {
-    var out = { bands: {}, bassBoost: '', virtualizer: '', reverb: '', summary: '' };
-    if (!data || typeof data !== 'object') return out;
-
-    var source = data.bands || data.eqBandsDb || data.equalizer || data.eq || data.gains || data;
-    var i, key, match;
-
-    if (Array.isArray(source)) {
-      source.forEach(function (item) {
-        if (!item || typeof item !== 'object') return;
-        var freq = asText(item.frequency || item.freq || item.band);
-        var gain = item.gain != null ? item.gain : item.value;
-        for (i = 0; i < BAND_KEYS.length; i++) {
-          key = BAND_KEYS[i];
-          if (BAND_ALIASES[key].test(freq)) out.bands[key] = clamp(Math.round(Number(gain)), -10, 10);
-        }
-      });
-    } else if (source && typeof source === 'object') {
-      Object.keys(source).forEach(function (rawKey) {
-        var value = source[rawKey];
-        if (value && typeof value === 'object') {
-          value = value.gain != null ? value.gain : (value.value != null ? value.value : value.db);
-        }
-        if (typeof value !== 'number' && !/^[-+]?\d+(\.\d+)?$/.test(String(value).trim())) return;
-        for (i = 0; i < BAND_KEYS.length; i++) {
-          key = BAND_KEYS[i];
-          match = BAND_ALIASES[key];
-          if (match.test(rawKey)) out.bands[key] = clamp(Math.round(Number(value)), -10, 10);
-        }
-      });
-    }
-
-    function pct(v) {
-      if (v == null || v === '') return '';
-      var n = Number(String(v).replace(/[^\d.+-]/g, ''));
-      if (isNaN(n)) return '';
-      return clamp(Math.round(n), 0, 100) + '%';
-    }
-    out.bassBoost = pct(data.bassBoostPct != null ? data.bassBoostPct : data.bassBoost);
-    out.virtualizer = pct(data.virtualizerPct != null ? data.virtualizerPct : data.virtualizer);
-    out.reverb = asText(data.reverbPreset || data.reverb || data.space);
-    out.summary = asText(data.reasoning || data.summary || data.note || data.explanation);
-
-    if (!Object.keys(out.bands).length) {
-      // Fall back to the JSON blob's prose so the panel is never blank.
-      out.summary = out.summary || asText(data.message);
-    }
-    return out;
-  }
-
-  function bandText(bands) {
-    var labels = { '60': '60Hz', '230': '230Hz', '910': '910Hz', '36k': '3.6kHz', '14k': '14kHz' };
-    return BAND_KEYS.map(function (k) {
-      var v = bands && bands[k] != null ? bands[k] : 0;
-      return labels[k] + ' ' + (v >= 0 ? '+' : '') + v + 'dB';
-    }).join(' · ');
-  }
-
   function m3uFrom(curator, opts) {
     opts = opts || {};
     var title = (curator && curator.title) || opts.fallbackTitle || 'Audenic Playlist';
@@ -1815,10 +1614,7 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     parseLRC: parseLRC,
     isCueLine: isCueLine,
     normaliseCurator: normaliseCurator,
-    normaliseEQ: normaliseEQ,
-    bandText: bandText,
-    m3uFrom: m3uFrom,
-    BAND_KEYS: BAND_KEYS
+    m3uFrom: m3uFrom
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
@@ -1839,35 +1635,16 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     provider: 'audenic.provider',
     tab: 'audenic.tab',
     song: 'audenic.lastSong',
-    curator: 'audenic.lastTheme',
-    eq: 'audenic.eqCurve'
-  };
-
-  var BANDS = [
-    { id: '60', label: '60 Hz' },
-    { id: '230', label: '230 Hz' },
-    { id: '910', label: '910 Hz' },
-    { id: '36k', label: '3.6 kHz' },
-    { id: '14k', label: '14 kHz' }
-  ];
-
-  var PRESETS = {
-    worship:  { bands: [4, 2, 0, 3, 5] },
-    bass:     { bands: [8, 5, -1, 1, 2] },
-    vocal:    { bands: [-2, 1, 4, 5, 3] },
-    acoustic: { bands: [2, 1, 2, 4, 6] },
-    flat:     { bands: [0, 0, 0, 0, 0] }
+    curator: 'audenic.lastTheme'
   };
 
   var STATE = {
     tab: 'lyrics',
     provider: 'auto',
-    eq: [0, 0, 0, 0, 0],
     companion: { checked: false, ok: false, health: null, checkedAt: 0 },
     busy: {},
     lyrics: { text: '', parsed: null, meta: null, sample: false },
-    curator: null,
-    eqResult: null
+    curator: null
   };
 
   /* ---------------------------------------------------------------- utils */
@@ -2041,22 +1818,24 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
 
   var ENGINE = {
     models: {
-      gemini: ['gemini-3.8-flash', 'gemini-3.6-flash'],
-      groq: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b']
+      gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+      groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b']
     }
   };
 
   function prettyModel(provider, model) {
     var name = String(model || '');
     if (provider === 'gemini') {
-      if (name.indexOf('3.8') !== -1) return 'Gemini 3.8 Flash';
-      if (name.indexOf('3.6') !== -1) return 'Gemini 3.6 Flash';
+      if (name.indexOf('2.5-flash-lite') !== -1) return 'Gemini 2.5 Flash-Lite';
+      if (name.indexOf('2.5-flash') !== -1) return 'Gemini 2.5 Flash';
+      if (name.indexOf('2.0-flash') !== -1) return 'Gemini 2.0 Flash';
       return name ? 'Gemini ' + name.replace('gemini-', '') : 'Gemini';
     }
     if (provider === 'groq') {
+      if (name.indexOf('llama-3.3-70b') !== -1) return 'Groq · Llama 3.3 70B';
+      if (name.indexOf('llama-3.1-8b') !== -1) return 'Groq · Llama 3.1 8B';
       if (name.indexOf('gpt-oss-120b') !== -1) return 'Groq · GPT-OSS 120B';
       if (name.indexOf('gpt-oss-20b') !== -1) return 'Groq · GPT-OSS 20B';
-      if (name.indexOf('qwen') !== -1) return 'Groq · Qwen 3.8 27B';
       return name ? 'Groq · ' + name : 'Groq';
     }
     return name || 'Companion';
@@ -2596,7 +2375,7 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
 
   /* ---------------------------------------------------------------- tabs */
 
-  var TAB_NAMES = ['lyrics', 'curator', 'eq', 'vault'];
+  var TAB_NAMES = ['lyrics', 'curator', 'vault'];
 
   function activateTab(name, options) {
     options = options || {};
@@ -2901,194 +2680,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     return lines.join('\n');
   }
 
-  /* ------------------------------------------------------------------ EQ */
-
-  var EQ_SYSTEM = [
-    'You are an acoustic engineer tuning Audenic\'s five-band equalizer.',
-    'Bands are 60 Hz, 230 Hz, 910 Hz, 3.6 kHz and 14 kHz.',
-    'Return ONLY a JSON object — no markdown, no code fences, no commentary.',
-    'Shape: {"bands":{"60":4,"230":2,"910":0,"36k":3,"14k":5},',
-    '"bassBoostPct":40,"virtualizerPct":20,"reverbPreset":"MediumRoom","reasoning":"two sentences"}',
-    'Every gain is an integer between -10 and +10. Keep moves musical: never all bands at the extremes.'
-  ].join(' ');
-
-  function bandsObject() {
-    var map = {};
-    BANDS.forEach(function (band, index) { map[band.id] = STATE.eq[index]; });
-    return map;
-  }
-
-  function paintBand(index) {
-    var band = BANDS[index];
-    var value = STATE.eq[index];
-    var track = $('track-' + band.id);
-    var thumb = $('thumb-' + band.id);
-    var fill = $('fill-' + band.id);
-    var label = $('val-' + band.id);
-    if (!track || !thumb || !fill || !label) return;
-
-    var y = 50 - (value / 10) * 45;
-    thumb.style.top = y + '%';
-    fill.style.top = Math.min(50, y) + '%';
-    fill.style.height = Math.abs(50 - y) + '%';
-    fill.setAttribute('data-sign', value < 0 ? 'neg' : 'pos');
-
-    label.textContent = (value > 0 ? '+' : '') + value + ' dB';
-    setClass(label, 'is-zero', value === 0);
-    track.setAttribute('aria-valuenow', String(value));
-    track.setAttribute('aria-valuetext', (value > 0 ? 'plus ' : value < 0 ? 'minus ' : '') + Math.abs(value) + ' decibels');
-  }
-
-  function paintAllBands() {
-    BANDS.forEach(function (band, index) { paintBand(index); });
-  }
-
-  function setBand(index, value, options) {
-    options = options || {};
-    STATE.eq[index] = Core.clamp(Math.round(Number(value) || 0), -10, 10);
-    paintBand(index);
-    if (!options.silent) {
-      Store.set(K.eq, JSON.stringify(STATE.eq));
-      clearPresetSelection();
-    }
-  }
-
-  function applyBands(map, options) {
-    options = options || {};
-    BANDS.forEach(function (band, index) {
-      if (map && map[band.id] != null) {
-        STATE.eq[index] = Core.clamp(Math.round(Number(map[band.id]) || 0), -10, 10);
-      }
-      paintBand(index);
-    });
-    if (!options.silent) Store.set(K.eq, JSON.stringify(STATE.eq));
-  }
-
-  function clearPresetSelection() {
-    each(doc.querySelectorAll('#eq-presets .chip'), function (chip) {
-      chip.setAttribute('aria-pressed', 'false');
-    });
-  }
-
-  function bindBands() {
-    BANDS.forEach(function (band, index) {
-      var track = $('track-' + band.id);
-      if (!track) return;
-
-      function fromPointer(event) {
-        var rect = track.getBoundingClientRect();
-        if (!rect.height) return;
-        var y = Core.clamp(event.clientY - rect.top, 0, rect.height);
-        var value = Math.round((0.5 - y / rect.height) * 20);
-        setBand(index, value, { silent: true });
-      }
-
-      function commit() {
-        track.classList.remove('is-dragging');
-        Store.set(K.eq, JSON.stringify(STATE.eq));
-        clearPresetSelection();
-      }
-
-      on(track, 'pointerdown', function (event) {
-        event.preventDefault();
-        track.classList.add('is-dragging');
-        try { track.setPointerCapture(event.pointerId); } catch (e) {}
-        fromPointer(event);
-        haptic(5);
-      });
-      on(track, 'pointermove', function (event) {
-        if (track.classList.contains('is-dragging')) fromPointer(event);
-      });
-      on(track, 'pointerup', commit);
-      on(track, 'pointercancel', commit);
-
-      on(track, 'keydown', function (event) {
-        var value = STATE.eq[index];
-        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') { event.preventDefault(); setBand(index, value + 1); }
-        else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') { event.preventDefault(); setBand(index, value - 1); }
-        else if (event.key === 'Home') { event.preventDefault(); setBand(index, 10); }
-        else if (event.key === 'End') { event.preventDefault(); setBand(index, -10); }
-        else if (event.key === '0' || event.key === 'Delete') { event.preventDefault(); setBand(index, 0); }
-      });
-    });
-  }
-
-  function renderEQResult(eq, response, rawText) {
-    STATE.eqResult = { data: eq, meta: response, raw: rawText };
-
-    $('eq-result').hidden = false;
-    setActionsEnabled('eq', true);
-    showNotice($('eq-notice'), null);
-    setBadge($('eq-badge'), response);
-    $('eq-title').textContent = 'Suggested curve';
-    $('eq-meta').textContent = metaText(response, '');
-
-    var summary = $('eq-summary');
-    summary.textContent = eq.summary || '';
-    summary.hidden = !eq.summary;
-
-    var dsp = $('eq-dsp');
-    clearNode(dsp);
-    if (eq.bassBoost) dsp.appendChild(el('span', 'tag', 'Bass boost ' + eq.bassBoost));
-    if (eq.virtualizer) dsp.appendChild(el('span', 'tag', '3D ' + eq.virtualizer));
-    if (eq.reverb) dsp.appendChild(el('span', 'tag', eq.reverb));
-
-    scrollToNode($('eq-result'), true);
-    announce('Curve applied. ' + Core.bandText(eq.bands));
-  }
-
-  async function runEQ() {
-    var input = $('eq-input');
-    var target = (input.value || '').trim();
-    if (!target) {
-      toast('Describe the sound you want first.', 'error');
-      input.focus();
-      return;
-    }
-    if (STATE.busy.eq) return;
-    STATE.busy.eq = true;
-
-    var button = $('btn-eq');
-    setBusy(button, true, 'Shaping the curve…');
-    setActionsEnabled('eq', false);
-    STATE.eqResult = null;
-    $('eq-result').hidden = false;
-    $('eq-body').hidden = true;
-    $('eq-badge').textContent = 'Working';
-    $('eq-badge').setAttribute('data-kind', '');
-    $('eq-meta').textContent = 'Calculating gains…';
-    showSkeleton($('eq-notice'), 'Calculating gains for ' + target);
-
-    var prompt = 'Target sound: ' + target + '\n' +
-      'Current curve: ' + Core.bandText(bandsObject()) + '\n' +
-      'Propose the five gains (and DSP extras) that move this curve toward the target.';
-
-    try {
-      var response = await generate({ prompt: prompt, system: EQ_SYSTEM, json: true, timeoutMs: 70000 });
-      var parsed = Core.extractJSON(response.text);
-      var eq = Core.normaliseEQ(parsed);
-
-      if (!Object.keys(eq.bands).length) {
-        throw new AIError('The engine returned no band gains.', 'Try a more concrete description — a genre, a room or an instrument.');
-      }
-
-      applyBands(eq.bands);
-      $('eq-body').hidden = false;
-      renderEQResult(eq, response, Core.stripFences(response.text));
-    } catch (error) {
-      var mapped = (error instanceof AIError) ? error : translateNetwork(error);
-      $('eq-body').hidden = true;
-      $('eq-badge').textContent = 'Not generated';
-      $('eq-badge').setAttribute('data-kind', 'muted');
-      $('eq-meta').textContent = '';
-      setActionsEnabled('eq', false);
-      errorNotice($('eq-notice'), mapped, runEQ);
-    } finally {
-      STATE.busy.eq = false;
-      setBusy(button, false);
-    }
-  }
-
   /* --------------------------------------------------------------- vault */
 
   function refreshKeyStates() {
@@ -3178,6 +2769,11 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     refreshKeyStates();
     refreshCompanionCard();
     refreshStatus();
+    var needsSetup = !hasLocalKey() && !STATE.companion.ok;
+    ['setup-banner-lyrics', 'setup-banner-curator'].forEach(function (id) {
+      var banner = $(id);
+      if (banner) banner.hidden = !needsSetup;
+    });
   }
 
   function saveKey(provider) {
@@ -3299,14 +2895,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
         { title: 'Shammah', artist: 'Prince Shema Jr.', genre: 'Afro-gospel', bpm: 92, duration: '4:40', why: 'The congregation can join by the second chorus.' },
         { title: 'Mungu Mwema', artist: 'Faraja Amani', genre: 'Swahili praise', bpm: 104, duration: '3:55', why: 'Full celebration: claps, brass and call-and-response.' }
       ]
-    },
-
-    eq: {
-      bands: { '60': 4, '230': 2, '910': -1, '36k': 3, '14k': 5 },
-      bassBoost: '35%',
-      virtualizer: '15%',
-      reverb: 'MediumRoom',
-      summary: 'Warm church choir emphasis: lift the sub and air while easing 910 Hz so the pastoral vocal sits inside the reverb rather than on top of it.'
     }
   };
 
@@ -3324,25 +2912,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     $('curator-body').hidden = false;
     renderCurator(curator, sampleMeta(), '');
     announce('Sample setlist shown. No request was sent.');
-  }
-
-  function showSampleEQ() {
-    var eq = Core.normaliseEQ(SAMPLES.eq);
-    applyBands(eq.bands, { silent: true });
-    $('eq-body').hidden = false;
-    renderEQResult(eq, sampleMeta(), '');
-    announce('Sample curve shown. No request was sent.');
-  }
-
-  function eqPlainText() {
-    if (!STATE.eqResult) return Core.bandText(bandsObject());
-    var eq = STATE.eqResult.data;
-    var parts = [Core.bandText(eq.bands)];
-    if (eq.bassBoost) parts.push('Bass boost ' + eq.bassBoost);
-    if (eq.virtualizer) parts.push('3D ' + eq.virtualizer);
-    if (eq.reverb) parts.push(eq.reverb);
-    var line = parts.join(' · ');
-    return eq.summary ? line + '\n' + eq.summary : line;
   }
 
   /* ------------------------------------------------------------ behaviour */
@@ -3383,22 +2952,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
         $('curator-input').focus();
       });
     });
-
-    each(doc.querySelectorAll('#eq-presets .chip'), function (chip) {
-      on(chip, 'click', function () {
-        var preset = PRESETS[chip.getAttribute('data-preset')];
-        if (!preset) return;
-        haptic(6);
-        applyBands(
-          { '60': preset.bands[0], '230': preset.bands[1], '910': preset.bands[2], '36k': preset.bands[3], '14k': preset.bands[4] },
-          { silent: true }
-        );
-        clearPresetSelection();
-        chip.setAttribute('aria-pressed', 'true');
-        Store.set(K.eq, JSON.stringify(STATE.eq));
-        announce(chip.textContent + ' preset applied');
-      });
-    });
   }
 
   function updateSongClear() {
@@ -3420,6 +2973,9 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     bindChips();
 
     on($('status-chip'), 'click', function () { activateTab('vault', { reveal: true }); });
+    each(doc.querySelectorAll('.setup-banner-btn'), function (btn) {
+      on(btn, 'click', function () { haptic(6); activateTab('vault', { reveal: true }); });
+    });
     on($('btn-back'), 'click', goBack);
 
     /* Lyrics */
@@ -3469,19 +3025,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
       persistInput(curatorInput, K.curator);
       on(curatorInput, 'keydown', function (event) {
         if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); runCurator(); }
-      });
-    }
-
-    /* EQ */
-    on($('btn-eq'), 'click', runEQ);
-    on($('eq-sample-btn'), 'click', showSampleEQ);
-    on($('eq-copy'), 'click', function () {
-      copyText(eqPlainText(), 'Curve copied');
-    });
-    var eqInput = $('eq-input');
-    if (eqInput) {
-      on(eqInput, 'keydown', function (event) {
-        if (event.key === 'Enter') { event.preventDefault(); runEQ(); }
       });
     }
 
@@ -3549,13 +3092,6 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     var theme = Store.get(K.curator);
     if (theme && $('curator-input')) $('curator-input').value = theme;
 
-    try {
-      var stored = JSON.parse(Store.get(K.eq) || 'null');
-      if (Array.isArray(stored) && stored.length === BANDS.length) {
-        STATE.eq = stored.map(function (value) { return Core.clamp(Math.round(Number(value) || 0), -10, 10); });
-      }
-    } catch (e) {}
-
     var tab = Store.get(K.tab);
     if (TAB_NAMES.indexOf(tab) !== -1) STATE.tab = tab;
   }
@@ -3566,12 +3102,9 @@ html[dir="rtl"] .select{ background-position: left 15px center; padding: 13px 15
     hydrate();
     setActionsEnabled('lyrics', false);
     setActionsEnabled('curator', false);
-    setActionsEnabled('eq', false);
     bindTabs();
-    bindBands();
     Karaoke.bind();
     bindControls();
-    paintAllBands();
     activateTab(STATE.tab);
     refreshVault();
     probeCompanion().then(refreshVault);
